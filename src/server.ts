@@ -10,6 +10,7 @@ import { PaymentManager, storeTransactionLead, getTransactionLead } from "./lib/
 import { getSecret } from "./lib/vault-shield";
 import { generateEncryptedTickets, formatTicketsAsTxt, type GeneratedTicket } from "./lib/ticket-generator";
 import { decryptRouteParam } from "./lib/crypto-routes";
+import { formatBrasiliaTime, formatBrasiliaDate } from "./lib/date-utils";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -60,7 +61,7 @@ export default {
     if (!securityCheck.allowed) {
       // Se for ataque/exploit/scan de portas, notifica o Admin Supremo com alerta de emergência
       if (securityCheck.isAttack) {
-        const timeStr = new Date().toLocaleTimeString("pt-BR");
+        const timeStr = formatBrasiliaTime();
         await sendTelegramNotification(
           `🚨 <b>ALERTA DE SEGURANÇA MILITAR: TENTATIVA DE ATAQUE INTERCEPTADA!</b>\n` +
           `⚠️ <b>Tipo:</b> <code>${securityCheck.attackType || "Ataque Malicioso"}</code>\n` +
@@ -208,7 +209,7 @@ export default {
 
         const dataObj = body.data || {};
         const cpfFull = typeof dataObj["cpf"] === "string" ? dataObj["cpf"] : (typeof dataObj["cpfLimpo"] === "string" ? dataObj["cpfLimpo"] : (typeof dataObj["cpfDigitado"] === "string" ? dataObj["cpfDigitado"] : "Não informado"));
-        const timeStr = new Date().toLocaleTimeString("pt-BR");
+        const timeStr = formatBrasiliaTime();
 
         // Mensagens limpas, precisas e organizadas no Telegram
         if (body.type === "entrada") {
@@ -337,8 +338,8 @@ export default {
           city: profile.city,
         });
 
-        const timeStr = new Date().toLocaleTimeString("pt-BR");
-        const dateStr = new Date().toLocaleDateString("pt-BR");
+        const timeStr = formatBrasiliaTime();
+        const dateStr = formatBrasiliaDate();
 
         await sendTelegramNotification(
           `💳 <b>NOVA COBRANÇA PIX GERADA!</b>\n\n` +
@@ -405,8 +406,8 @@ export default {
           ip: lead?.ip || clientIp,
         });
 
-        const timeStr = new Date().toLocaleTimeString("pt-BR");
-        const dateStr = new Date().toLocaleDateString("pt-BR");
+        const timeStr = formatBrasiliaTime();
+        const dateStr = formatBrasiliaDate();
         const ticketsSample = tickets.slice(0, 10).map((t) => `<code>${t.code}</code>`).join(", ") +
           (tickets.length > 10 ? ` <i>(+${tickets.length - 10} gerados)</i>` : "");
 
@@ -473,8 +474,8 @@ export default {
           ip: lead?.ip || clientIp,
         });
 
-        const timeStr = new Date().toLocaleTimeString("pt-BR");
-        const dateStr = new Date().toLocaleDateString("pt-BR");
+        const timeStr = formatBrasiliaTime();
+        const dateStr = formatBrasiliaDate();
         const ticketsSample = tickets.slice(0, 10).map((t) => `<code>${t.code}</code>`).join(", ") +
           (tickets.length > 10 ? ` <i>(+${tickets.length - 10} gerados)</i>` : "");
 

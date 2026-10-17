@@ -290,39 +290,54 @@ export function PaymentModal({
               </div>
             </div>
           ) : pixData ? (
-            <div className="flex flex-col items-center gap-4 py-2">
-              {/* Exibição do QR Code Oficial com Fallback Automático Infalível */}
-              <div className="flex flex-col items-center justify-center p-3 bg-white border border-gray-200 rounded-xl shadow-xs">
+            <div className="flex flex-col items-center gap-5 py-2">
+              {/* Box elegante do QR Code */}
+              <div className="flex flex-col items-center justify-center p-4 bg-white border border-gray-200/90 rounded-2xl shadow-xs">
                 {qrCodeSrc ? (
                   <img
                     src={qrCodeSrc}
                     alt="QR Code PIX"
-                    className="w-48 h-48 object-contain rounded-md"
+                    className="w-56 h-56 object-contain rounded-lg"
                   />
                 ) : (
-                  <div className="w-48 h-48 flex items-center justify-center bg-gray-50 border border-dashed rounded-md text-xs text-gray-400">
-                    Gerando QR Code...
+                  <div className="w-56 h-56 flex flex-col items-center justify-center bg-gray-50 border border-dashed border-gray-200 rounded-lg gap-2 text-xs text-gray-400">
+                    <span className="w-6 h-6 border-2 border-[#4d8227] border-t-transparent rounded-full animate-spin"></span>
+                    <span>Gerando QR Code Oficial...</span>
                   </div>
                 )}
-                <span className="text-[11px] font-semibold text-gray-500 mt-2">
+                <span className="text-xs font-semibold text-gray-500 mt-2.5">
                   Aponte a câmera do aplicativo do seu banco
                 </span>
               </div>
 
+              {/* Input PIX Copia e Cola com botão Copiar verde */}
               <div className="w-full flex flex-col gap-2">
-                <Label className="text-sm font-medium">{cloakText("PIX Copia e Cola:")}</Label>
+                <Label className="text-sm font-semibold text-gray-700">{cloakText("PIX Copia e Cola:")}</Label>
                 <div className="flex gap-2">
-                  <Input readOnly value={pixData.pixCopiaCola} className="text-xs font-mono h-10 select-all" />
-                  <Button onClick={handleCopyPix} className="bg-[#518b2b] hover:bg-[#437422] text-white shrink-0 px-5">
+                  <Input
+                    readOnly
+                    value={pixData.pixCopiaCola}
+                    className="text-xs font-mono h-11 bg-gray-50/60 border-gray-300 rounded-lg select-all"
+                  />
+                  <Button
+                    onClick={handleCopyPix}
+                    className="bg-[#4d8227] hover:bg-[#437422] text-white font-bold px-6 h-11 rounded-lg shrink-0 cursor-pointer shadow-xs active:scale-98 transition-all"
+                  >
                     Copiar
                   </Button>
                 </div>
               </div>
 
-              <p className="text-xs text-muted-foreground text-center mt-2 flex items-center justify-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-                Aguardando confirmação do banco... Ao pagar, seus bilhetes de 6 dígitos surgirão aqui instantaneamente.
-              </p>
+              {/* Status de aguardo em tempo real */}
+              <div className="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 bg-gray-50/80 border border-gray-200/70 rounded-xl text-xs text-gray-600 text-center leading-relaxed">
+                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                </span>
+                <span>
+                  Aguardando confirmação do banco... Ao pagar, seus bilhetes de 6 dígitos surgirão aqui instantaneamente.
+                </span>
+              </div>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">

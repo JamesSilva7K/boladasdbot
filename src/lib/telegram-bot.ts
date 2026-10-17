@@ -2,6 +2,7 @@ import { getRifaConfig, updateRifaConfig, getRecentEvents, getMetrics, type Rifa
 import { PaymentManager } from "./payment-manager";
 import { getSecret } from "./vault-shield";
 import { banIpPermanently, unbanIp, getBannedIpsList } from "./security-shield";
+import { formatBrasiliaTime } from "./date-utils";
 
 function getTelegramToken(): string {
   return getSecret("TELEGRAM_BOT_TOKEN");
@@ -223,7 +224,7 @@ export function renderEventosScreen(): { text: string; markup: InlineKeyboardMar
   }
 
   const lines = events.map((e) => {
-    const hora = new Date(e.timestamp).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const hora = formatBrasiliaTime(new Date(e.timestamp));
     let icon = "⚡";
     let desc = e.type as string;
     const dataObj = e.data || {};
@@ -261,7 +262,7 @@ export function renderLeadsListScreen(): { text: string; markup: InlineKeyboardM
         city: e.city || "Brasil",
         state: e.state || "BR",
         device: e.device || "Mobile",
-        lastSeen: new Date(e.timestamp).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+        lastSeen: formatBrasiliaTime(new Date(e.timestamp), { hour: "2-digit", minute: "2-digit" }),
         cpf: cpfDisplay,
       });
     }

@@ -235,7 +235,7 @@ export function TrustAndClientSection() {
             onClick={() => redirectToWhatsApp("regulamento")}
           />
           <span className="text-[10px] text-gray-400 font-mono">
-            v0.2.481-2
+            v0.2.491-2
           </span>
         </div>
       </div>
