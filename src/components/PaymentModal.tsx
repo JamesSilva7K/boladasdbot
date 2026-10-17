@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import QRCode from "qrcode";
 import { cpf as cpfValidator } from "cpf-cnpj-validator";
+
 import { Turnstile } from "@marsidev/react-turnstile";
 import {
   Dialog,
@@ -41,6 +43,53 @@ export function PaymentModal({
   const [tickets, setTickets] = useState<{ code: string; hash: string }[]>([]);
   const [currentTxId, setCurrentTxId] = useState<string | null>(null);
   const [copiedCodes, setCopiedCodes] = useState(false);
+  const [qrCodeSrc, setQrCodeSrc] = useState<string | null>(null);
+
+  // Geração garantida do QR Code PIX a partir do código PIX Copia e Cola ou Base64 retornado
+  useEffect(() => {
+    if (!pixData?.pixCopiaCola) {
+      setQrCodeSrc(null);
+      return;
+    }
+
+    // Se o gateway já forneceu imagem base64 válida ou URL HTTP direta
+    if (pixData.qrCodeBase64) {
+      const b64 = pixData.qrCodeBase64.trim();
+      if (b64.startsWith("data:") || b64.startsWith("http")) {
+        setQrCodeSrc(b64);
+        return;
+      }
+      if (b64.length > 50 && !b64.includes(" ")) {
+        setQrCodeSrc(`data:image/png;base64,${b64.replace(/^base64:/, "")}`);
+        return;
+      }
+    }
+
+    // Fallback dinâmico infalível: gera a imagem do QR Code instantaneamente a partir da string EMV do PIX
+    let active = true;
+    QRCode.toDataURL(pixData.pixCopiaCola, {
+      width: 320,
+      margin: 1,
+      color: {
+        dark: "#111827",
+        light: "#ffffff",
+      },
+    })
+      .then((url) => {
+        if (active) setQrCodeSrc(url);
+      })
+      .catch(() => {
+        // Fallback para serviço online de QR code caso falhe localmente
+        if (active) {
+          setQrCodeSrc(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(pixData.pixCopiaCola)}`);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [pixData]);
+
 
   // Polling automático de status de pagamento e liberação dos códigos criptografados
   useEffect(() => {
@@ -242,22 +291,34 @@ export function PaymentModal({
             </div>
           ) : pixData ? (
             <div className="flex flex-col items-center gap-4 py-2">
-              {pixData.qrCodeBase64 && (
-                <img
-                  src={pixData.qrCodeBase64.startsWith("data:") ? pixData.qrCodeBase64 : `data:image/png;base64,${pixData.qrCodeBase64.replace(/^base64:/, "")}`}
-                  alt="QR Code"
-                  className="w-48 h-48 border rounded-lg p-2 bg-white shadow-sm"
-                />
-              )}
+              {/* Exibição do QR Code Oficial com Fallback Automático Infalível */}
+              <div className="flex flex-col items-center justify-center p-3 bg-white border border-gray-200 rounded-xl shadow-xs">
+                {qrCodeSrc ? (
+                  <img
+                    src={qrCodeSrc}
+                    alt="QR Code PIX"
+                    className="w-48 h-48 object-contain rounded-md"
+                  />
+                ) : (
+                  <div className="w-48 h-48 flex items-center justify-center bg-gray-50 border border-dashed rounded-md text-xs text-gray-400">
+                    Gerando QR Code...
+                  </div>
+                )}
+                <span className="text-[11px] font-semibold text-gray-500 mt-2">
+                  Aponte a câmera do aplicativo do seu banco
+                </span>
+              </div>
+
               <div className="w-full flex flex-col gap-2">
                 <Label className="text-sm font-medium">{cloakText("PIX Copia e Cola:")}</Label>
                 <div className="flex gap-2">
-                  <Input readOnly value={pixData.pixCopiaCola} className="text-xs font-mono h-10" />
-                  <Button onClick={handleCopyPix} className="bg-[#518b2b] hover:bg-[#437422] text-white">
+                  <Input readOnly value={pixData.pixCopiaCola} className="text-xs font-mono h-10 select-all" />
+                  <Button onClick={handleCopyPix} className="bg-[#518b2b] hover:bg-[#437422] text-white shrink-0 px-5">
                     Copiar
                   </Button>
                 </div>
               </div>
+
               <p className="text-xs text-muted-foreground text-center mt-2 flex items-center justify-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
                 Aguardando confirmação do banco... Ao pagar, seus bilhetes de 6 dígitos surgirão aqui instantaneamente.
