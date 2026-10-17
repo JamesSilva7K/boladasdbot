@@ -1,0 +1,294 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design system definition.
+ *
+ * The @theme inline block maps CSS custom properties to Tailwind utility
+ * classes (e.g. --color-primary -> bg-primary, text-primary).
+ *
+ * The :root and .dark blocks define the actual color values using oklch.
+ * All colors MUST use oklch format.
+ *
+ * To add a new semantic color:
+ * 1. Add the variable to :root (light value) and .dark (dark value)
+ * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ */
+
+@theme inline {
+  --font-sans: "Inter", sans-serif;
+  --color-brand-yellow: var(--brand-yellow);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --brand-blue-deep: oklch(0.31 0.18 265);
+  --brand-blue-bright: oklch(0.46 0.25 264);
+  --brand-yellow: oklch(0.93 0.19 101);
+  --brand-orange: oklch(0.77 0.17 65);
+  --brand-green: oklch(0.7 0.2 137);
+  --brand-green-hover: oklch(0.86 0.13 145);
+  --brand-green-deep: oklch(0.43 0.14 145);
+  --brand-on-blue: oklch(1 0 0);
+  --brand-gray: oklch(0.885 0 0);
+  --brand-faq-surface: oklch(0.944 0 0);
+  --brand-blue-gradient: linear-gradient(90deg, var(--brand-blue-deep), var(--brand-blue-bright));
+  --brand-gray-gradient: linear-gradient(90deg, var(--brand-gray), var(--background));
+  --brand-purchase-gradient: linear-gradient(180deg, var(--brand-yellow), var(--brand-orange));
+  --brand-purchase-hover: linear-gradient(180deg, var(--brand-green), var(--brand-green-deep));
+
+  --radius: 0.5rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.129 0.042 264.695);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.129 0.042 264.695);
+  --primary: oklch(0.46 0.25 264);
+  --primary-foreground: oklch(0.984 0.003 247.858);
+  --secondary: oklch(0.968 0.007 247.896);
+  --secondary-foreground: oklch(0.208 0.042 265.755);
+  --muted: oklch(0.968 0.007 247.896);
+  --muted-foreground: oklch(0.554 0.046 257.417);
+  --accent: oklch(0.968 0.007 247.896);
+  --accent-foreground: oklch(0.208 0.042 265.755);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(0.929 0.013 255.508);
+  --input: oklch(0.929 0.013 255.508);
+  --ring: oklch(0.704 0.04 256.788);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.984 0.003 247.858);
+  --sidebar-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-primary: oklch(0.208 0.042 265.755);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.968 0.007 247.896);
+  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: oklch(0.704 0.04 256.788);
+}
+
+.dark {
+  --background: oklch(0.129 0.042 264.695);
+  --foreground: oklch(0.984 0.003 247.858);
+  --card: oklch(0.208 0.042 265.755);
+  --card-foreground: oklch(0.984 0.003 247.858);
+  --popover: oklch(0.208 0.042 265.755);
+  --popover-foreground: oklch(0.984 0.003 247.858);
+  --primary: oklch(0.929 0.013 255.508);
+  --primary-foreground: oklch(0.208 0.042 265.755);
+  --secondary: oklch(0.279 0.041 260.031);
+  --secondary-foreground: oklch(0.984 0.003 247.858);
+  --muted: oklch(0.279 0.041 260.031);
+  --muted-foreground: oklch(0.704 0.04 256.788);
+  --accent: oklch(0.279 0.041 260.031);
+  --accent-foreground: oklch(0.984 0.003 247.858);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.551 0.027 264.364);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.208 0.042 265.755);
+  --sidebar-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.279 0.041 260.031);
+  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.551 0.027 264.364);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
+}
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { margin: 0; font-family: "Inter", sans-serif; }
+  * { letter-spacing: 0; box-sizing: border-box; }
+  a { text-decoration: none; }
+  button, a { -webkit-tap-highlight-color: transparent; }
+}
+.bolada-page { overflow-x: clip; }
+.site-header { background: var(--brand-blue-gradient); color: var(--brand-on-blue); height: 87px; }
+.header-inner { width: 100%; max-width: 1440px; height: 100%; margin: 0 auto; padding: 0 40px; display: flex; align-items: center; justify-content: space-between; }
+.header-logo { width: 110px; height: auto; max-height: 52px; object-fit: contain; }
+.header-aplicap { width: 130px; height: auto; max-height: 40px; object-fit: contain; }
+.main-nav { display: flex; align-items: center; gap: 28px; margin: 0 auto 0 50px; height: 100%; }
+.main-nav a { font-size: 13px; font-weight: 700; color: #ffffff; padding: 4px 0; line-height: 1.2; display: inline-flex; align-items: center; white-space: nowrap; transition: color 0.2s ease; position: relative; border-bottom: 2px solid transparent; }
+.main-nav a.active { color: var(--brand-yellow); border-bottom-color: var(--brand-yellow); }
+.main-nav a:hover { color: var(--brand-yellow); }
+.navigation-button { background: transparent; color: inherit; box-shadow: none; }
+.mobile-menu { display: none; }
+.prize-section, .participation-section, .instagram-section { background: var(--brand-gray-gradient); }
+.prize-banner { display: block; width: 100%; height: auto; aspect-ratio: 1672 / 941; }
+.purchase-area { padding: 14px 20px 23px; text-align: center; }
+.purchase-button { width: 535px; max-width: 100%; height: 81px; border-radius: 101px; background: var(--brand-purchase-gradient); color: var(--brand-blue-bright); font: 900 40px "Montserrat", sans-serif; }
+.purchase-button:hover { background: var(--brand-purchase-hover); color: var(--brand-on-blue); }
+.draw-information { display: flex; justify-content: center; gap: 55px; margin-top: 18px; font: 600 16px/1.5 "Montserrat", sans-serif; }
+.draw-information p { margin: 0; }
+.legal-links { display: flex; justify-content: center; gap: 14px; margin-top: 12px; font: 400 12px "Montserrat", sans-serif; }
+.legal-links a { text-decoration: underline; }
+.section-inner { max-width: 1200px; margin: auto; }
+.participation-section { padding: 20px 60px 40px; }
+.participation-section h1, .instagram-section h2 { margin: 0; text-align: center; font-size: 56px; line-height: 1.2; font-weight: 700; }
+.participation-section h1 span, .instagram-section h2 span { color: var(--brand-blue-bright); }
+.participation-intro { text-align: center; margin: 18px 0 30px; font: 400 18px/1.5 "DM Sans", sans-serif; }
+.participation-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 30px; }
+.participation-step img { width: 100%; height: auto; aspect-ratio: 420 / 156; object-fit: contain; }
+.participation-step p { text-align: center; font: 400 18px/1.5 "DM Sans", sans-serif; margin: 18px 10px 0; }
+.faq-section, .community-section, .charity-section, .site-footer { background: var(--brand-blue-gradient); color: var(--brand-on-blue); }
+.faq-section { padding: 45px 60px 40px; }
+.faq-section h2, .charity-section h2 { margin: 8px 0; text-align: center; font-size: 56px; line-height: 1.2; }
+.faq-section h2 span, .charity-section h2 span, .community-section h2 span { color: var(--brand-yellow); }
+.faq-intro { text-align: center; max-width: 292px; margin: 14px auto 30px; font-weight: 700; }
+.faq-list { max-width: 1000px; margin: auto; }
+.faq-item { margin-bottom: 12px; }
+.faq-question { width: 100%; height: 66px; border-radius: 0; padding: 12px 18px; display: flex; justify-content: space-between; background: var(--brand-faq-surface); color: var(--foreground); font-size: 18px; font-weight: 700; text-align: left; white-space: normal; }
+.faq-icon { width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; background: var(--brand-blue-gradient); color: var(--brand-on-blue); display: grid; place-items: center; }
+.faq-answer { padding: 20px; font-size: 16px; font-weight: 600; line-height: 1.6; }
+.community-section { padding: 80px 60px; }
+.community-inner { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 70px; }
+.community-section h2 { font: 700 40px/1.35 "Oswald", sans-serif; margin: 0 0 24px; }
+.community-inner > img { width: 410px; max-width: 100%; margin: auto; }
+.community-button { background: var(--brand-green); color: var(--brand-on-blue); border-radius: 10px; width: 300px; max-width: 100%; height: 58px; font-size: 24px; font-weight: 700; }
+.community-button:hover { background: var(--brand-green-hover); }
+.charity-section { padding: 10px 60px 40px; }
+.charity-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: center; margin-top: 35px; }
+.charity-photo { width: 500px; max-width: 100%; height: auto; margin: auto; }
+.charity-copy > img { width: 358px; max-width: 100%; }
+.charity-copy p { font-size: 18px; line-height: 1.6; }
+.instagram-section { padding: 40px 60px; text-align: center; }
+.instagram-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 15px; margin: 35px 0; }
+.instagram-grid img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
+.site-footer { padding: 45px 60px 30px; }
+.footer-inner { max-width: 1200px; margin: auto; }
+.footer-columns { display: grid; grid-template-columns: 1.3fr 1.1fr 1fr 0.8fr; gap: 40px; align-items: flex-start; }
+.footer-brand > a > img { width: 170px; height: auto; }
+.footer-brand p { font: 400 14px/1.6 "DM Sans", sans-serif; margin-top: 14px; opacity: 0.95; }
+.footer-col h3 { font-size: 17px; font-weight: 800; margin: 10px 0 16px; letter-spacing: 0.5px; }
+.footer-col a { color: #ffffff; font-size: 14px; font-weight: 500; text-decoration: none; transition: opacity 0.2s ease; }
+.footer-col a:hover { opacity: 0.8; }
+.footer-links-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.footer-links-list a { font-size: 14px; font-weight: 500; }
+.footer-social-icon { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; color: #ffffff; }
+.footer-legal-block { margin-top: 40px; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 25px; }
+.footer-partners { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+.footer-partners img { height: 28px; width: auto; object-fit: contain; }
+.footer-legal-text { font-size: 10px; line-height: 1.5; color: rgba(255, 255, 255, 0.75); text-align: left; margin: 0; }
+.illustration-note { text-align: center; font-size: 12px; margin: 30px 0 15px; font-weight: 700; color: rgba(255, 255, 255, 0.9); }
+.copyright { text-align: center; padding: 10px 0; font-size: 14px; font-weight: 800; letter-spacing: 0.5px; }
+.playcap-logo { display: block; width: 140px; margin: 15px auto 0; opacity: 0.9; }
+.playcap-logo img { width: 100%; height: auto; }
+@media (max-width: 1200px) {
+ .header-inner { padding: 0 35px; gap: 20px; }
+ .main-nav { gap: 20px; }
+}
+@media (max-width: 900px) {
+ .site-header { height: 76px; position: relative; z-index: 10; }
+ .header-inner { padding: 0 20px; }
+ .header-logo { width: 85px; height: 60px; }
+ .header-aplicap { width: 90px; margin-left: auto; }
+ .mobile-menu { display: inline-flex; }
+ .main-nav { display: none; }
+ .main-nav.is-open { display: flex; position: absolute; top: 76px; left: 0; right: 0; padding: 20px; background: var(--brand-blue-gradient); flex-direction: column; align-items: flex-start; gap: 15px; }
+ .main-nav a { font-size: 15px; }
+ .participation-section, .faq-section, .charity-section, .instagram-section, .site-footer { padding-left: 24px; padding-right: 24px; }
+ .participation-section h1, .instagram-section h2, .faq-section h2, .charity-section h2 { font-size: 36px; }
+ .community-section { padding: 45px 24px; }
+ .community-inner { gap: 20px; }
+ .community-section h2 { font-size: 30px; }
+ .footer-columns { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 600px) {
+ .site-header { height: 70px; }
+ .main-nav.is-open { top: 70px; }
+ .prize-banner { width: 100%; }
+ .purchase-area { padding: 14px 18px 23px; }
+ .purchase-button { height: 60px; font-size: 28px; width: 100%; }
+ .draw-information { gap: 20px; font-size: 12px; }
+ .legal-links { font-size: 11px; }
+ .participation-section { padding-top: 20px; padding-bottom: 35px; }
+ .participation-section h1, .instagram-section h2, .faq-section h2, .charity-section h2 { font-size: 24px; }
+ .participation-intro { font-size: 16px; margin: 16px 0 28px; }
+ .participation-steps { grid-template-columns: 1fr; gap: 32px; }
+ .participation-step { max-width: 420px; margin: auto; }
+ .participation-step p { font-size: 16px; }
+ .faq-section { padding-top: 30px; padding-bottom: 15px; }
+ .faq-intro { font-size: 14px; }
+ .faq-question { font-size: 15px; padding: 10px 12px; min-height: 60px; height: auto; }
+ .faq-answer { font-size: 14px; padding: 15px 5px; }
+ .community-inner, .charity-inner { grid-template-columns: 1fr; text-align: center; }
+ .community-section { padding-top: 35px; padding-bottom: 40px; }
+ .community-inner > img { width: 280px; }
+ .community-button { width: 260px; height: 52px; font-size: 20px; }
+ .charity-inner { margin-top: 25px; gap: 25px; }
+ .charity-copy p { font-size: 16px; text-align: left; }
+ .charity-copy > img { width: 280px; }
+ .instagram-section { padding-top: 30px; padding-bottom: 30px; }
+ .instagram-grid { grid-template-columns: 1fr 1fr; gap: 10px; margin: 25px 0; }
+ .footer-columns { grid-template-columns: 1fr; text-align: center; gap: 15px; }
+ .footer-brand > a > img { width: 180px; }
+ .footer-partners { justify-content: center; }
+ .footer-columns h3 { margin: 15px 0; }
+ .footer-columns svg { margin: auto; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
