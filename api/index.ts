@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+// @ts-expect-error server.js is generated at build time in dist/
 import server from "../dist/server/server.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
