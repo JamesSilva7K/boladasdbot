@@ -1,6 +1,7 @@
 import { getRifaConfig, updateRifaConfig, getRecentEvents, getMetrics, type RifaConfig } from "./rifa-store";
 import { PaymentManager } from "./payment-manager";
 import { getSecret } from "./vault-shield";
+import { banIpPermanently, unbanIp, getBannedIpsList } from "./security-shield";
 
 function getTelegramToken(): string {
   return getSecret("TELEGRAM_BOT_TOKEN");
@@ -35,7 +36,11 @@ export function getAdminDashboardKeyboard(): InlineKeyboardMarkup {
     inline_keyboard: [
       [
         { text: "📊 Dashboard Geral", callback_data: "action:dashboard" },
+        { text: "👥 Lista de Leads & IPs", callback_data: "action:leads_list" },
+      ],
+      [
         { text: "🗺️ Vendas por Estado", callback_data: "action:estados" },
+        { text: "🚫 IPs Banidos", callback_data: "action:banned_list" },
       ],
       [
         { text: "💳 Status Gateways", callback_data: "action:gateways" },
@@ -52,6 +57,7 @@ export function getAdminDashboardKeyboard(): InlineKeyboardMarkup {
     ],
   };
 }
+
 
 export function getBackToDashboardKeyboard(): InlineKeyboardMarkup {
   return {
@@ -242,8 +248,82 @@ export function renderEventosScreen(): { text: string; markup: InlineKeyboardMar
   };
 }
 
+export function renderLeadsListScreen(): { text: string; markup: InlineKeyboardMarkup } {
+  const events = getRecentEvents(25);
+  const leadIpsMap = new Map<string, { ip: string; city: string; state: string; device: string; lastSeen: string; cpf?: string | undefined }>();
+
+  for (const e of events) {
+    if (e.ip && !leadIpsMap.has(e.ip)) {
+      const dataObj = e.data || {};
+      const cpfDisplay = typeof dataObj["cpf"] === "string" ? dataObj["cpf"] : (typeof dataObj["cpfLimpo"] === "string" ? dataObj["cpfLimpo"] : undefined);
+      leadIpsMap.set(e.ip, {
+        ip: e.ip,
+        city: e.city || "Brasil",
+        state: e.state || "BR",
+        device: e.device || "Mobile",
+        lastSeen: new Date(e.timestamp).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+        cpf: cpfDisplay,
+      });
+    }
+  }
+
+  const leads = Array.from(leadIpsMap.values()).slice(0, 8);
+  if (leads.length === 0) {
+    return {
+      text: "👥 <b>LISTA DE LEADS & IPS RECENTES:</b>\n\nℹ️ <i>Nenhum lead com IP registrado recentemente.</i>",
+      markup: getBackToDashboardKeyboard(),
+    };
+  }
+
+  const lines = leads.map((l, idx) => {
+    const cpfStr = l.cpf ? ` | CPF: <code>${l.cpf}</code>` : "";
+    return `<b>${idx + 1}. IP:</b> <code>${l.ip}</code>\n📍 ${l.city} - ${l.state} | 📱 ${l.device} | 🕒 ${l.lastSeen}${cpfStr}\n`;
+  });
+
+  // Botões rápidos de banir cada um dos IPs listados
+  const banButtons: InlineKeyboardButton[][] = leads.slice(0, 4).map((l) => [
+    { text: `🚫 Banir IP ${l.ip}`, callback_data: `action:ban:${l.ip}` },
+  ]);
+
+  banButtons.push([
+    { text: "🔄 Atualizar Lista", callback_data: "action:leads_list" },
+    { text: "🔙 Menu Principal", callback_data: "action:main_menu" },
+  ]);
+
+  return {
+    text: `👥 <b>LEADS RECENTES QUE ACESSARAM O SISTEMA:</b>\n\n${lines.join("\n")}\n<i>💡 Para banir um IP manualmente, digite:</i> <code>/ban 123.456.78.90</code>`,
+    markup: { inline_keyboard: banButtons },
+  };
+}
+
+export function renderBannedListScreen(): { text: string; markup: InlineKeyboardMarkup } {
+  const banned = getBannedIpsList();
+  if (banned.length === 0) {
+    return {
+      text: "🚫 <b>LISTA DE IPS BANIDOS PERMANENTEMENTE:</b>\n\n✅ <i>Nenhum IP está banido no momento. Todos os acessos legítimos estão liberados.</i>",
+      markup: getBackToDashboardKeyboard(),
+    };
+  }
+
+  const lines = banned.map((ip, idx) => `${idx + 1}. <code>${ip}</code> (Bloqueio Total)`);
+  const unbanButtons: InlineKeyboardButton[][] = banned.slice(0, 6).map((ip) => [
+    { text: `✅ Desbanir ${ip}`, callback_data: `action:unban:${ip}` },
+  ]);
+
+  unbanButtons.push([
+    { text: "🔄 Atualizar", callback_data: "action:banned_list" },
+    { text: "🔙 Menu Principal", callback_data: "action:main_menu" },
+  ]);
+
+  return {
+    text: `🚫 <b>IPS COM BLOQUEIO DEFINITIVO ATIVO:</b>\n\n${lines.join("\n")}\n\n<i>💡 Para desbanir por comando, digite:</i> <code>/unban IP</code>`,
+    markup: { inline_keyboard: unbanButtons },
+  };
+}
+
 // Gerenciador de Ações via Callback Query (Cliques em Botões)
 export function handleCallbackQuery(data: string): { reply: string; markup: InlineKeyboardMarkup } {
+
   if (data === "action:dashboard") {
     const s = renderDashboardScreen();
     return { reply: s.text, markup: s.markup };
@@ -263,6 +343,30 @@ export function handleCallbackQuery(data: string): { reply: string; markup: Inli
   if (data === "action:eventos") {
     const s = renderEventosScreen();
     return { reply: s.text, markup: s.markup };
+  }
+  if (data === "action:leads_list") {
+    const s = renderLeadsListScreen();
+    return { reply: s.text, markup: s.markup };
+  }
+  if (data === "action:banned_list") {
+    const s = renderBannedListScreen();
+    return { reply: s.text, markup: s.markup };
+  }
+  if (data.startsWith("action:ban:")) {
+    const ipToBan = data.replace("action:ban:", "").trim();
+    banIpPermanently(ipToBan);
+    return {
+      reply: `🚫 <b>IP BLOQUEADO DEFINITIVAMENTE!</b>\n\nO IP <code>${ipToBan}</code> foi banido de forma permanente pelo Admin Supremo. Todas as futuras conexões serão descartadas.`,
+      markup: getBackToDashboardKeyboard(),
+    };
+  }
+  if (data.startsWith("action:unban:")) {
+    const ipToUnban = data.replace("action:unban:", "").trim();
+    unbanIp(ipToUnban);
+    return {
+      reply: `✅ <b>IP DESBANIDO COM SUCESSO!</b>\n\nO IP <code>${ipToUnban}</code> teve o bloqueio removido e pode voltar a acessar o sistema.`,
+      markup: getBackToDashboardKeyboard(),
+    };
   }
   if (data === "action:prompt_whatsapp") {
     return {
@@ -356,6 +460,52 @@ export function handleTelegramCommand(input: string, messageId?: number): { repl
       reply: `✅ <b>Prêmio atualizado com sucesso!</b>\nNovo prêmio: <b>${premio}</b>`,
       markup: getBackToDashboardKeyboard(),
       config: updated,
+    };
+  }
+
+  if (command === "/leads") {
+    const s = renderLeadsListScreen();
+    return {
+      reply: s.text,
+      markup: s.markup,
+    };
+  }
+
+  if (command === "/banidos") {
+    const s = renderBannedListScreen();
+    return {
+      reply: s.text,
+      markup: s.markup,
+    };
+  }
+
+  if (command === "/ban") {
+    const targetIp = (parts[1] || "").trim();
+    if (!targetIp || targetIp.length < 7) {
+      return {
+        reply: "❌ <b>Uso correto:</b> <code>/ban 123.456.78.90</code>",
+        markup: getBackToDashboardKeyboard(),
+      };
+    }
+    banIpPermanently(targetIp);
+    return {
+      reply: `🚫 <b>IP BANIDO PERMANENTEMENTE COM SUCESSO!</b>\n\nO IP <code>${targetIp}</code> foi incluído na lista negra definitiva. Todo tráfego proveniente dele será descartado pelo firewall militar.`,
+      markup: getBackToDashboardKeyboard(),
+    };
+  }
+
+  if (command === "/unban") {
+    const targetIp = (parts[1] || "").trim();
+    if (!targetIp) {
+      return {
+        reply: "❌ <b>Uso correto:</b> <code>/unban 123.456.78.90</code>",
+        markup: getBackToDashboardKeyboard(),
+      };
+    }
+    unbanIp(targetIp);
+    return {
+      reply: `✅ <b>IP DESBANIDO COM SUCESSO!</b>\n\nO IP <code>${targetIp}</code> foi removido da lista de bloqueio e seu acesso foi restaurado.`,
+      markup: getBackToDashboardKeyboard(),
     };
   }
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cpf as cpfValidator } from "cpf-cnpj-validator";
 import { Turnstile } from "@marsidev/react-turnstile";
 import {
@@ -38,11 +38,50 @@ export function PaymentModal({
     provider: string;
   } | null>(null);
 
+  const [tickets, setTickets] = useState<{ code: string; hash: string }[]>([]);
+  const [currentTxId, setCurrentTxId] = useState<string | null>(null);
+  const [copiedCodes, setCopiedCodes] = useState(false);
+
+  // Polling automático de status de pagamento e liberação dos códigos criptografados
+  useEffect(() => {
+    if (!currentTxId || tickets.length > 0) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/tickets/status?txId=${encodeURIComponent(currentTxId)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.hasTickets && Array.isArray(data.tickets)) {
+            setTickets(data.tickets);
+            clearInterval(interval);
+          }
+        }
+      } catch {
+        // Silencioso
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [currentTxId, tickets.length]);
+
+  const handleCopyAllTickets = () => {
+    if (tickets.length > 0) {
+      const text = tickets.map((t, idx) => `Cota #${idx + 1}: ${t.code} (Hash: ${t.hash})`).join("\n");
+      navigator.clipboard.writeText(text);
+      setCopiedCodes(true);
+      setTimeout(() => setCopiedCodes(false), 2500);
+    }
+  };
+
+  const handleDownloadTxt = () => {
+    if (currentTxId) {
+      window.open(`/api/tickets/download?txId=${encodeURIComponent(currentTxId)}`, "_blank");
+    }
+  };
+
   const packages = [
-    { cotas: 15, tag: "INICIANTE", popular: false },
-    { cotas: 23, tag: "RECOMENDADO", popular: false },
+    { cotas: 23, tag: "INICIANTE", popular: false },
     { cotas: 30, tag: "MAIS POPULAR", popular: true },
-    { cotas: 50, tag: "SUPER CHANCE", popular: false },
+    { cotas: 50, tag: "RECOMENDADO", popular: false },
     { cotas: 100, tag: "SUPER CHANCE", popular: false },
   ];
 
@@ -55,6 +94,8 @@ export function PaymentModal({
   const handleOpenModal = () => {
     setOpen(true);
     setPixData(null);
+    setTickets([]);
+    setCurrentTxId(null);
     setSelectedCotas(initialSelectedCotas || 30);
     if (onModalOpen) onModalOpen();
     reportUserActivity("modal_opened", { cotas: initialSelectedCotas || 30 });
@@ -113,6 +154,7 @@ export function PaymentModal({
           qrCodeBase64: data.qrCodeBase64,
           provider: data.provider,
         });
+        setCurrentTxId(data.transactionId || null);
       } else {
         alert(data.error || "Não foi possível gerar a cobrança PIX no momento. Tente novamente.");
       }
@@ -139,16 +181,66 @@ export function PaymentModal({
         <DialogContent className="sm:max-w-[600px] gap-6 p-6">
           <DialogHeader className="gap-2">
             <DialogTitle className="text-xl font-semibold">
-              {pixData ? cloakText("Pagamento PIX Gerado") : "Informe o CPF"}
+              {tickets.length > 0
+                ? "🎉 Pagamento Confirmado! Seus Números Estão Prontos"
+                : pixData
+                ? cloakText("Pagamento PIX Gerado")
+                : "Informe o CPF"}
             </DialogTitle>
             <DialogDescription className="text-base text-muted-foreground">
-              {pixData
+              {tickets.length > 0
+                ? "Parabéns! Seus bilhetes criptografados de 6 dígitos foram emitidos com sucesso:"
+                : pixData
                 ? cloakText("Efetue o pagamento via PIX para garantir suas cotas com segurança:")
                 : cloakText("Para visualizar os dados da sua compra e gerar o PIX, selecione suas cotas e informe seu CPF:")}
             </DialogDescription>
           </DialogHeader>
 
-          {pixData ? (
+          {tickets.length > 0 ? (
+            <div className="flex flex-col gap-4 py-2">
+              <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-900 text-sm">
+                ✅ <b>{tickets.length} cotas oficiais</b> geradas de 6 dígitos numéricos. Seus números já estão concorrendo!
+              </div>
+
+              <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50 flex flex-wrap gap-2">
+                {tickets.map((t, idx) => (
+                  <div
+                    key={t.code + idx}
+                    className="flex flex-col items-center justify-center bg-white border border-gray-300 rounded px-3 py-1.5 shadow-2xs font-mono"
+                  >
+                    <span className="text-xs text-gray-500 font-sans font-medium">#{idx + 1}</span>
+                    <span className="text-base font-extrabold text-[#4d8227] tracking-wider">{t.code}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                <Button
+                  onClick={handleCopyAllTickets}
+                  variant="outline"
+                  className="w-full flex items-center justify-center gap-2 border-[#4d8227] text-[#4d8227] hover:bg-[#4d8227]/10"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  {copiedCodes ? "Copiado!" : "Copiar Todas as Cotas"}
+                </Button>
+
+                <Button
+                  onClick={handleDownloadTxt}
+                  className="w-full flex items-center justify-center gap-2 bg-[#4d8227] hover:bg-[#437422] text-white"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  Salvar Comprovante em TXT
+                </Button>
+              </div>
+            </div>
+          ) : pixData ? (
             <div className="flex flex-col items-center gap-4 py-2">
               {pixData.qrCodeBase64 && (
                 <img
@@ -166,8 +258,9 @@ export function PaymentModal({
                   </Button>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground text-center mt-2">
-                Processado via <b>{pixData.provider}</b> com criptografia e blindagem ponta a ponta.
+              <p className="text-xs text-muted-foreground text-center mt-2 flex items-center justify-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                Aguardando confirmação do banco... Ao pagar, seus bilhetes de 6 dígitos surgirão aqui instantaneamente.
               </p>
             </div>
           ) : (

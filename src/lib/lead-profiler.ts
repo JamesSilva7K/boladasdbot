@@ -68,17 +68,68 @@ export function parseUserAgent(ua: string) {
   return { device, os, browser };
 }
 
-export function extractLeadProfile(request: Request, clientIp: string): LeadProfile {
+export interface LeadValidationResult {
+  isGenuineBrazilian: boolean;
+  score: number; // 0 a 100
+  reasons: string[];
+}
+
+export function validateGenuineBrazilianLead(request: Request, ua: string): LeadValidationResult {
+  const reasons: string[] = [];
+  let score = 0;
+
+  // 1. Geolocalização via IP
+  const country = (request.headers.get("cf-ipcountry") || request.headers.get("x-country-code") || "BR").toUpperCase();
+  if (country === "BR") {
+    score += 40;
+  } else {
+    reasons.push(`País não brasileiro detectado: ${country}`);
+  }
+
+  // 2. Idioma preferencial no cabeçalho Accept-Language
+  const acceptLang = (request.headers.get("accept-language") || "").toLowerCase();
+  if (acceptLang.includes("pt-br") || acceptLang.includes("pt")) {
+    score += 25;
+  } else if (!acceptLang) {
+    score += 10; // Requisições sem header
+  } else {
+    reasons.push(`Idioma do navegador não é português (${acceptLang.substring(0, 15)})`);
+  }
+
+  // 3. User-Agent típico de usuário brasileiro comum (Android/iPhone/Windows)
+  if (/Android|iPhone|Windows NT/i.test(ua)) {
+    score += 20;
+  }
+
+  // 4. Detecção de Bots conhecidos, Headless Chrome, Crawlers e Scrapers
+  if (/bot|crawler|spider|headless|scrape|curl|wget|python|postman|insomnia/i.test(ua)) {
+    score -= 60;
+    reasons.push("Assinatura de Crawler / Bot / Headless detectada");
+  } else {
+    score += 15;
+  }
+
+  const isGenuineBrazilian = score >= 60;
+
+  return {
+    isGenuineBrazilian,
+    score: Math.max(0, Math.min(100, score)),
+    reasons,
+  };
+}
+
+export function extractLeadProfile(request: Request, clientIp: string): LeadProfile & { validation: LeadValidationResult } {
   const ua = request.headers.get("user-agent") || "";
   const { device, os, browser } = parseUserAgent(ua);
 
   // Cloudflare Geolocation Headers (ou fallback)
-  const country = request.headers.get("cf-ipcountry") || "BR";
+  const country = (request.headers.get("cf-ipcountry") || "BR").toUpperCase();
   const stateCode = (request.headers.get("cf-region-code") || "SP").toUpperCase();
   const city = request.headers.get("cf-ipcity") || "São Paulo";
   const stateName = STATE_MAP[stateCode] || stateCode;
 
-  const isBrazilian = country.toUpperCase() === "BR";
+  const isBrazilian = country === "BR";
+  const validation = validateGenuineBrazilianLead(request, ua);
 
   return {
     ip: clientIp,
@@ -90,5 +141,7 @@ export function extractLeadProfile(request: Request, clientIp: string): LeadProf
     os,
     isBrazilian,
     userAgent: ua,
+    validation,
   };
 }
+

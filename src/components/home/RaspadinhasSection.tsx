@@ -1,7 +1,24 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Plus, Ticket } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus } from "lucide-react";
 import { cloakText } from "@/lib/cloaker";
 import { useWhatsAppRedirect } from "@/hooks/useWhatsAppRedirect";
+
+function MysteryBoxIcon() {
+  return (
+    <div className="w-6 h-6 rounded bg-[#4d8227] text-white flex items-center justify-center text-xs font-black shadow-xs select-none shrink-0">
+      ?
+    </div>
+  );
+}
+
+function TicketCutoutVector() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+      <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z" />
+      <path d="M12 7v2m0 6v2" />
+    </svg>
+  );
+}
 
 interface ScratchTicket {
   id: string;
@@ -50,13 +67,11 @@ export function RaspadinhasSection() {
   const hasMore = visibleCount < list.length;
 
   return (
-    <section className="w-full bg-[#f4f6f8] px-4 py-4 flex flex-col gap-3">
+    <section className="w-full bg-[#f4f6f8] px-4 py-3 flex flex-col gap-3">
       {/* Card Informativo de Introdução */}
-      <div className="w-full bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs flex flex-col gap-1.5">
+      <div className="w-full bg-white rounded-xl p-4 border border-gray-200/80 shadow-2xs flex flex-col gap-1.5">
         <div className="flex items-center gap-2">
-          <span className="w-6 h-6 rounded bg-[#4d8227] text-white flex items-center justify-center text-xs font-bold shadow-xs">
-            ?
-          </span>
+          <MysteryBoxIcon />
           <h2 className="text-sm sm:text-base font-bold text-gray-900 m-0">
             {cloakText("Raspadinhas dos Sonhos")}
           </h2>
@@ -67,7 +82,7 @@ export function RaspadinhasSection() {
       </div>
 
       {/* Card Expansível / Accordion com Filtros e Listagem */}
-      <div className="w-full bg-white rounded-xl border border-gray-200/80 shadow-xs overflow-hidden">
+      <div className="w-full bg-white rounded-xl border border-gray-200/80 shadow-2xs overflow-hidden">
         {/* Cabeçalho do Accordion */}
         <button
           type="button"
@@ -75,9 +90,7 @@ export function RaspadinhasSection() {
           className="w-full px-4 py-3.5 flex items-center justify-between text-left hover:bg-gray-50/50 transition-colors cursor-pointer"
         >
           <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded bg-[#4d8227] text-white flex items-center justify-center text-xs font-bold shadow-xs">
-              ?
-            </span>
+            <MysteryBoxIcon />
             <span className="text-sm sm:text-base font-bold text-gray-900">
               {cloakText("Raspadinhas dos Sonhos")}
             </span>
@@ -105,7 +118,7 @@ export function RaspadinhasSection() {
                 }}
                 className={`py-2 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                   activeTab === "todas"
-                    ? "bg-[#cbd5e1] text-gray-900 shadow-xs"
+                    ? "bg-[#cbd5e1] text-gray-900 shadow-2xs"
                     : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
                 }`}
               >
@@ -120,7 +133,7 @@ export function RaspadinhasSection() {
                 }}
                 className={`py-2 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                   activeTab === "disponiveis"
-                    ? "border-2 border-[#4d8227] text-gray-900 bg-white shadow-xs"
+                    ? "border-2 border-[#4d8227] text-gray-900 bg-white shadow-2xs"
                     : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
                 }`}
               >
@@ -135,7 +148,7 @@ export function RaspadinhasSection() {
                 }}
                 className={`py-2 px-3 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                   activeTab === "compradas"
-                    ? "bg-[#cbd5e1] text-gray-900 shadow-xs"
+                    ? "bg-[#cbd5e1] text-gray-900 shadow-2xs"
                     : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
                 }`}
               >
@@ -152,7 +165,7 @@ export function RaspadinhasSection() {
                       {item.prize}
                     </span>
                     <div className="flex items-center gap-1.5 text-xs text-gray-500 font-mono">
-                      <span>🎫</span>
+                      <TicketCutoutVector />
                       <span>{item.code}</span>
                     </div>
 
@@ -173,12 +186,12 @@ export function RaspadinhasSection() {
                           if (buyBtn instanceof HTMLElement) buyBtn.click();
                           else redirectToWhatsApp("duvida_item", `Cota disponível ${item.code}`);
                         }}
-                        className="px-4 py-1.5 bg-[#4d8227] hover:bg-[#437222] text-white text-xs font-bold rounded-full shadow-xs cursor-pointer active:scale-95 transition-transform"
+                        className="px-4 py-1.5 bg-[#4d8227] hover:bg-[#437222] text-white text-xs font-bold rounded-full shadow-2xs cursor-pointer active:scale-95 transition-transform"
                       >
                         Disponível
                       </button>
                     ) : (
-                      <span className="px-4 py-1.5 bg-[#cbd5e1] text-gray-700 text-xs font-bold rounded-full inline-block">
+                      <span className="px-4 py-1.5 bg-[#cbd5e1] text-gray-700 text-xs font-bold rounded-full inline-block select-none">
                         Comprado
                       </span>
                     )}

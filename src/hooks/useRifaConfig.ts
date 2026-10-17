@@ -62,7 +62,8 @@ export async function reportUserActivity(
     | "tentativa_consulta"
     | "entrada"
     | "saida"
-    | "clique_whatsapp",
+    | "clique_whatsapp"
+    | "selecao_cotas",
   data?: Record<string, unknown>
 ) {
   try {

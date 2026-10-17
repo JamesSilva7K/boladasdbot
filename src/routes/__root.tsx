@@ -79,10 +79,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: cloakText("Bolada Pix") },
-      { name: "description", content: cloakText("Bolada Pix — Prêmios incríveis que podem mudar seu estilo de vida.") },
-      { property: "og:title", content: cloakText("Bolada Pix") },
-      { property: "og:description", content: cloakText("Prêmios incríveis que podem mudar seu estilo de vida.") },
+      { title: "Carregando..." },
+      { name: "description", content: "Acesso seguro e verificado." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -91,9 +89,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: logoUrl, type: "image/webp" },
-      { rel: "shortcut icon", href: logoUrl, type: "image/webp" },
-      { rel: "apple-touch-icon", href: logoUrl },
+      { rel: "icon", href: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>" },
+      { rel: "shortcut icon", href: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>" },
+      { rel: "apple-touch-icon", href: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@400;600;700;900&family=Oswald:wght@600;700&family=DM+Sans:wght@400;500;700&display=swap" },
     ],
   }),
@@ -104,6 +102,47 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    // Blindagem de Título e Favicon:
+    // Começa em branco/neutro e só aplica a marca após validação positiva como lead genuinamente brasileiro
+    async function validateAndRevealBrand() {
+      try {
+        const res = await fetch("/api/validate-lead", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.valid) {
+            // Descriptografa e aplica o título oficial
+            document.title = data.title || "Bolada Pix — Prêmios incríveis";
+
+            // Injeta o Favicon da marca no DOM dinamicamente
+            let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+            if (!link) {
+              link = document.createElement("link");
+              link.rel = "icon";
+              document.head.appendChild(link);
+            }
+            link.href = data.icon || logoUrl;
+
+            let appleLink = document.querySelector<HTMLLinkElement>("link[rel='apple-touch-icon']");
+            if (!appleLink) {
+              appleLink = document.createElement("link");
+              appleLink.rel = "apple-touch-icon";
+              document.head.appendChild(appleLink);
+            }
+            appleLink.href = data.icon || logoUrl;
+          }
+        }
+      } catch {
+        // Silencioso para não interromper navegação
+      }
+    }
+
+    validateAndRevealBrand();
+  }, []);
+
   return (
     <html lang="pt-BR">
       <head>
@@ -127,3 +166,4 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
+

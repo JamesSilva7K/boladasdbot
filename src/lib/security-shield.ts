@@ -58,6 +58,17 @@ export function auditSecurity(request: Request): SecurityAuditResult {
   const now = Date.now();
   const url = new URL(request.url);
 
+  // 0. Bloqueio permanente de IP determinado pelo Admin Supremo
+  if (PERMANENT_BANNED_IPS.has(ip)) {
+    return {
+      allowed: false,
+      isAttack: true,
+      attackType: "Acesso de IP Banido Permanentemente",
+      details: `IP ${ip} consta na lista negra definitiva do Admin Supremo.`,
+      reason: "Seu IP foi bloqueado definitivamente pelo administrador de segurança.",
+    };
+  }
+
   // 1. Detecção de Scanners de portas, descobrimento de caminhos e injeções
   const pathname = url.pathname;
   for (const pattern of MALICIOUS_PATTERNS) {
@@ -128,6 +139,34 @@ export function auditSecurity(request: Request): SecurityAuditResult {
   return { allowed: true };
 }
 
+// Blacklist permanente configurada pelo Admin Supremo via Telegram
+const PERMANENT_BANNED_IPS = new Set<string>();
+
+export function banIpPermanently(ip: string): boolean {
+  if (!ip) return false;
+  const cleanIp = ip.trim();
+  PERMANENT_BANNED_IPS.add(cleanIp);
+  const now = Date.now();
+  rateLimitMap.set(cleanIp, {
+    count: 999999,
+    firstRequest: now,
+    blockedUntil: now + 365 * 24 * 60 * 60 * 1000, // 1 ano
+  });
+  return true;
+}
+
+export function unbanIp(ip: string): boolean {
+  if (!ip) return false;
+  const cleanIp = ip.trim();
+  const wasBanned = PERMANENT_BANNED_IPS.delete(cleanIp);
+  rateLimitMap.delete(cleanIp);
+  return wasBanned || true;
+}
+
+export function getBannedIpsList(): string[] {
+  return Array.from(PERMANENT_BANNED_IPS);
+}
+
 // Headers Militares de Criptografia, Camuflagem e Segurança HTTP
 export const MILITARY_SECURITY_HEADERS = {
   "X-Frame-Options": "DENY",
@@ -139,3 +178,4 @@ export const MILITARY_SECURITY_HEADERS = {
   "Server": "Cloud-Secure-Edge", // Camuflagem contra reconhecimento de servidores
   "X-Powered-By": "Protected-Core",
 };
+
