@@ -12,7 +12,9 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { cloakText } from "../lib/cloaker";
+import { initClientSecurityShield } from "../lib/anti-copy-shield";
 import logoUrl from "@/assets/logo.webp";
+
 
 function NotFoundComponent() {
   return (
@@ -103,7 +105,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   useEffect(() => {
-    // Blindagem de Título e Favicon:
+    // 🛡️ 1. Ativação da Blindagem Contra Cópias, Atalhos de Inspeção e Clonagem
+    const cleanupShield = initClientSecurityShield();
+
+    // 🛡️ 2. Blindagem de Título e Favicon:
     // Começa em branco/neutro e só aplica a marca após validação positiva como lead genuinamente brasileiro
     async function validateAndRevealBrand() {
       try {
@@ -141,7 +146,12 @@ function RootShell({ children }: { children: ReactNode }) {
     }
 
     validateAndRevealBrand();
+
+    return () => {
+      cleanupShield();
+    };
   }, []);
+
 
   return (
     <html lang="pt-BR">

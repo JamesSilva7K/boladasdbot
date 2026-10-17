@@ -167,8 +167,34 @@
   a { text-decoration: none; }
   button, a { -webkit-tap-highlight-color: transparent; }
 }
+/* 🛡️ Blindagem Militar Anti-Cópia e Proteção de Ativos Visuais */
+body {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+input, textarea {
+  -webkit-user-select: auto;
+  -moz-user-select: auto;
+  -ms-user-select: auto;
+  user-select: auto;
+}
+
+img {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  pointer-events: auto;
+}
+
 .bolada-page { overflow-x: clip; }
 .site-header { background: var(--brand-blue-gradient); color: var(--brand-on-blue); height: 87px; }
+
 .header-inner { width: 100%; max-width: 1440px; height: 100%; margin: 0 auto; padding: 0 40px; display: flex; align-items: center; justify-content: space-between; }
 .header-logo { width: 110px; height: auto; max-height: 52px; object-fit: contain; }
 .header-aplicap { width: 130px; height: auto; max-height: 40px; object-fit: contain; }

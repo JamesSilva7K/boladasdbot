@@ -11,10 +11,12 @@ const WINDOW_MS = 60 * 1000; // 1 minuto
 const MAX_REQUESTS = 120; // max requisições normais por minuto
 const BLOCK_DURATION_MS = 30 * 60 * 1000; // 30 min de bloqueio militar se estourar
 
-// Assinaturas de Scanners de Portas, Bots Maliciosos e Tentativas de Injeção
+// Assinaturas de Scanners de Portas, Bots Maliciosos, Cloners de Sites e Tentativas de Injeção
 const MALICIOUS_PATTERNS = [
   /\.env/i,
   /\.git/i,
+  /\.vscode/i,
+  /\.docker/i,
   /wp-admin/i,
   /wp-login/i,
   /phpmyadmin/i,
@@ -23,15 +25,49 @@ const MALICIOUS_PATTERNS = [
   /\.aws/i,
   /xmlrpc/i,
   /\.\./,
+  /\/\.well-known/i,
   /<script>/i,
+  /javascript:/i,
+  /onerror=/i,
+  /onload=/i,
   /select\s+.*from/i,
   /union\s+select/i,
+  /insert\s+into/i,
+  /delete\s+from/i,
+  /drop\s+table/i,
+  /benchmark\(/i,
+  /sleep\(\d+\)/i,
   /etc\/passwd/i,
   /\.php/i,
   /\.asp/i,
+  /\.jsp/i,
   /\/cgi-bin\//i,
   /\/telescope\//i,
+  /httrack/i,
+  /wget/i,
+  /teleport/i,
+  /webcopier/i,
+  /offline\s*explorer/i,
+  /site\s*sniffer/i,
 ];
+
+// Assinaturas de Crawlers de Clonagem e Rippers de Código
+const CLONE_BOT_USER_AGENTS = [
+  /httrack/i,
+  /teleport/i,
+  /webcopier/i,
+  /offline\s*explorer/i,
+  /site\s*sniffer/i,
+  /copier/i,
+  /scraper/i,
+  /rip/i,
+  /grabber/i,
+  /ninja/i,
+  /download\s*ninja/i,
+  /cyotek/i,
+  /webhttrack/i,
+];
+
 
 export function getClientIp(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -82,14 +118,30 @@ export function auditSecurity(request: Request): SecurityAuditResult {
       return {
         allowed: false,
         isAttack: true,
-        attackType: "Exploit / Scanner de Portas & Arquivos",
-        details: `Caminho malicioso interceptado: ${pathname}${url.search}`,
+        attackType: "Exploit / Scanner de Portas & Injeção",
+        details: `Caminho/Payload interceptado: ${pathname}${url.search}`,
         reason: "Scanner/Exploit attempt blocked",
       };
     }
   }
 
+  // 1.1 Bloqueio Imediato de Softwares de Clonagem de Sites e Rippers (HTTrack, Teleport, Scrapers)
+  const userAgent = request.headers.get("user-agent") || "";
+  for (const botPattern of CLONE_BOT_USER_AGENTS) {
+    if (botPattern.test(userAgent)) {
+      banIpPermanently(ip);
+      return {
+        allowed: false,
+        isAttack: true,
+        attackType: "Bot de Clonagem / Ripper de Código Interceptado",
+        details: `Software de cópia interceptado: ${userAgent}`,
+        reason: "Site cloning tools are strictly blocked by military shield.",
+      };
+    }
+  }
+
   // 2. Bloqueio Geográfico (Somente Brasil)
+
   const enforceBrazil = process.env["ENFORCE_BRAZIL_ONLY"] === "true";
   if (enforceBrazil) {
     const country = request.headers.get("cf-ipcountry"); // Cloudflare Geo Header
@@ -167,15 +219,20 @@ export function getBannedIpsList(): string[] {
   return Array.from(PERMANENT_BANNED_IPS);
 }
 
-// Headers Militares de Criptografia, Camuflagem e Segurança HTTP
+// Headers Militares de Criptografia, Camuflagem e Blindagem Completa HTTP
 export const MILITARY_SECURITY_HEADERS = {
   "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",
   "X-XSS-Protection": "1; mode=block",
   "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=*",
   "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+  "Content-Security-Policy": "frame-ancestors 'none'; object-src 'none';",
+  "Cross-Origin-Embedder-Policy": "unsafe-none",
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Cross-Origin-Resource-Policy": "same-origin",
   "Server": "Cloud-Secure-Edge", // Camuflagem contra reconhecimento de servidores
   "X-Powered-By": "Protected-Core",
 };
+
 
