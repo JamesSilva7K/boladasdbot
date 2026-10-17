@@ -221,12 +221,12 @@ export function ModernPrizeSection() {
         )}
 
         {/* Barra de Ação / Compra */}
-        <div className="w-full bg-white pt-2 pb-1 flex items-center justify-between border-t border-gray-100 mt-1">
-          <div className="flex flex-col">
-            <span className="text-[11px] uppercase font-bold text-gray-500 tracking-wider">
+        <div className="w-full bg-white pt-2.5 pb-2 flex items-center justify-between border-t border-gray-100 mt-2">
+          <div className="flex flex-col justify-center">
+            <span className="text-[13px] font-medium text-slate-700 tracking-normal leading-tight">
               {selectedCotas} {cloakText("Números")}
             </span>
-            <span className="text-xl sm:text-2xl font-black text-gray-900 leading-none">
+            <span className="text-xl sm:text-[22px] font-black text-slate-900 leading-none mt-1">
               R$ {totalPriceFormatted}
             </span>
           </div>
@@ -238,12 +238,13 @@ export function ModernPrizeSection() {
           >
             <button
               type="button"
-              className="px-8 py-3 bg-[#4d8227] hover:bg-[#437222] text-white font-black text-sm sm:text-base rounded-md shadow-xs active:scale-98 transition-all uppercase tracking-wider cursor-pointer"
+              className="px-9 py-2.5 bg-[#4d8227] hover:bg-[#437222] text-white font-bold text-base rounded-md shadow-xs active:scale-98 transition-all tracking-wide cursor-pointer"
             >
               {cloakText("COMPRAR")}
             </button>
           </PaymentModal>
         </div>
+
       </div>
     </section>
   );
