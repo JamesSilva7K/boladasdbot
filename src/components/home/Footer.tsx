@@ -19,15 +19,16 @@ export function Footer() {
     <footer className="site-footer" id="contato">
       <div className="section-inner footer-inner">
         <div className="footer-columns">
-          <div className="footer-brand">
-            <a href="/">
-              <img src={footerLogo} alt={cloakText("Bolada Pix")} />
+          <div className="footer-brand flex flex-col items-center text-center w-full">
+            <a href="/" className="inline-flex justify-center items-center mx-auto">
+              <img src={footerLogo} alt={cloakText("Bolada Pix")} className="mx-auto block" />
             </a>
-            <p>
+            <p className="text-center mx-auto">
               <strong>{cloakText("Prêmios incríveis")}</strong>, que podem<br />
               mudar o seu <strong>estilo de vida!</strong>
             </p>
           </div>
+
 
           <div className="footer-col">
             <h3>CONTATO</h3>
