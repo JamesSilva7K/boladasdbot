@@ -69,12 +69,13 @@ export function initClientSecurityShield(): () => void {
 
   // 4. Anti-Frame / Anti-Clickjacking no Client
   try {
-    if (window.self !== window.top) {
-      window.top!.location = window.self.location;
+    if (window.top && window.self !== window.top) {
+      window.top.location.href = window.self.location.href;
     }
   } catch {
-    // Bloqueado por cross-origin frame
+    // Bloqueado por restrições de cross-origin
   }
+
 
   // Registra os listeners globais
   document.addEventListener("contextmenu", handleContextMenu, { capture: true });
