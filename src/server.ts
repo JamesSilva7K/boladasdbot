@@ -135,11 +135,16 @@ export default {
             `🌐 <b>IP Completo:</b> <code>${clientIp}</code> | ⏰ <code>${timeStr}</code>`
           );
         } else if (body.type === "click_comprar") {
+          const cotas = dataObj["cotas"] || 30;
+          const valor = dataObj["valor"] || "20,70";
+          const plano = dataObj["plano"] || `${cotas} números`;
           await sendTelegramNotification(
             `🛒 <b>CLIQUE EM COMPRAR!</b>\n` +
-            `📍 <b>Origem:</b> ${profile.city} - ${profile.state}\n` +
+            `🎟 <b>Pacote Selecionado:</b> ${plano} (${cotas} cotas)\n` +
+            `💰 <b>Valor Previsto:</b> R$ ${valor}\n` +
+            `📍 <b>Origem:</b> ${profile.city} - ${profile.state} (${profile.country})\n` +
+            `📱 <b>Dispositivo:</b> ${profile.device} | ${profile.os} (${profile.browser})\n` +
             `🌐 <b>IP:</b> <code>${clientIp}</code>\n` +
-            `📱 <b>Dispositivo:</b> ${profile.device}\n` +
             `⏰ <b>Horário:</b> <code>${timeStr}</code>`
           );
         } else if (body.type === "modal_opened") {

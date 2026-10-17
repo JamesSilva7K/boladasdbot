@@ -1,13 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Header } from "@/components/home/Header";
-import { PrizeSection } from "@/components/home/PrizeSection";
-import { ParticipationSection } from "@/components/home/ParticipationSection";
-import { FaqSection } from "@/components/home/FaqSection";
-import { CommunitySection } from "@/components/home/CommunitySection";
-import { CharitySection } from "@/components/home/CharitySection";
-import { InstagramSection } from "@/components/home/InstagramSection";
-import { Footer } from "@/components/home/Footer";
+import { ModernHeader } from "@/components/home/ModernHeader";
+import { ModernPrizeSection } from "@/components/home/ModernPrizeSection";
+import { RaspadinhasSection } from "@/components/home/RaspadinhasSection";
+import { TrustAndClientSection } from "@/components/home/TrustAndClientSection";
 import { reportUserActivity } from "@/hooks/useRifaConfig";
 import { cloakText } from "@/lib/cloaker";
 
@@ -66,17 +62,15 @@ function Index() {
   }, []);
 
   return (
-    <div className="bolada-page">
-      <Header />
-      <main>
-        <PrizeSection />
-        <ParticipationSection />
-        <FaqSection />
-        <CommunitySection />
-        <CharitySection />
-        <InstagramSection />
-      </main>
-      <Footer />
+    <div className="min-h-screen bg-[#eceef1] flex justify-center selection:bg-[#4d8227]/20 selection:text-gray-900">
+      <div className="w-full max-w-[520px] bg-white min-h-screen shadow-md flex flex-col border-x border-gray-200/60">
+        <ModernHeader />
+        <main className="flex-1 flex flex-col">
+          <ModernPrizeSection />
+          <RaspadinhasSection />
+          <TrustAndClientSection />
+        </main>
+      </div>
     </div>
   );
 }

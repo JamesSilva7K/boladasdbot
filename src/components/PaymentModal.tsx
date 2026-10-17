@@ -17,13 +17,19 @@ import { cloakText } from "@/lib/cloaker";
 interface PaymentModalProps {
   children: React.ReactNode;
   onModalOpen?: () => void;
+  selectedCotas?: number;
+  totalPrice?: number;
 }
 
-export function PaymentModal({ children, onModalOpen }: PaymentModalProps) {
+export function PaymentModal({
+  children,
+  onModalOpen,
+  selectedCotas: initialSelectedCotas = 30,
+}: PaymentModalProps) {
   const config = useRifaConfig();
   const [open, setOpen] = useState(false);
   const [cpf, setCpf] = useState("");
-  const [selectedCotas, setSelectedCotas] = useState(30);
+  const [selectedCotas, setSelectedCotas] = useState(initialSelectedCotas);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [pixData, setPixData] = useState<{
@@ -34,8 +40,9 @@ export function PaymentModal({ children, onModalOpen }: PaymentModalProps) {
 
   const packages = [
     { cotas: 15, tag: "INICIANTE", popular: false },
+    { cotas: 23, tag: "RECOMENDADO", popular: false },
     { cotas: 30, tag: "MAIS POPULAR", popular: true },
-    { cotas: 50, tag: "RECOMENDADO", popular: false },
+    { cotas: 50, tag: "SUPER CHANCE", popular: false },
     { cotas: 100, tag: "SUPER CHANCE", popular: false },
   ];
 
@@ -48,9 +55,9 @@ export function PaymentModal({ children, onModalOpen }: PaymentModalProps) {
   const handleOpenModal = () => {
     setOpen(true);
     setPixData(null);
-    setSelectedCotas(30);
+    setSelectedCotas(initialSelectedCotas || 30);
     if (onModalOpen) onModalOpen();
-    reportUserActivity("modal_opened", { defaultCotas: 30 });
+    reportUserActivity("modal_opened", { cotas: initialSelectedCotas || 30 });
   };
 
   const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
