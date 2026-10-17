@@ -1,5 +1,8 @@
 import { Button } from "@/components/ui/button";
 import banner from "@/assets/banner.webp";
+import { conditions, regulation } from "@/lib/constants";
+import { PaymentModal } from "@/components/PaymentModal";
+import { useRifaConfig, reportUserActivity } from "@/hooks/useRifaConfig";
 import { useWhatsAppRedirect } from "@/hooks/useWhatsAppRedirect";
 
 export function PrizeSection() {

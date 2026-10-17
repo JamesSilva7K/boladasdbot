@@ -3,6 +3,7 @@ import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.webp";
 import aplicap from "@/assets/aplicap.webp";
+import { navigation } from "@/lib/constants";
 import { useWhatsAppRedirect, type WhatsAppActionType } from "@/hooks/useWhatsAppRedirect";
 
 export function Header() {

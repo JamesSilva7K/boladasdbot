@@ -24,8 +24,8 @@ export function ParticipationSection() {
     ],
   ];
 
-  const handleStepClick = (stepTitle: string) => {
-    redirectToWhatsApp("passos_participacao", stepTitle);
+  const handleStepClick = (stepTitle?: string) => {
+    redirectToWhatsApp("passos_participacao", stepTitle || "");
   };
 
   return (

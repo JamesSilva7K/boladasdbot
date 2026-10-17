@@ -8,8 +8,8 @@ export function FaqSection() {
   const [openedQuestion, setOpenedQuestion] = useState<number | null>(null);
   const { redirectToWhatsApp } = useWhatsAppRedirect();
 
-  const handleAskSupport = (questionText: string) => {
-    redirectToWhatsApp("duvida_item", questionText);
+  const handleAskSupport = (questionText?: string) => {
+    redirectToWhatsApp("duvida_item", questionText || "");
   };
 
   return (
