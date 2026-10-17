@@ -1,8 +1,11 @@
 import stepOne from "@/assets/step-one.webp";
 import stepTwo from "@/assets/step-two.webp";
 import stepThree from "@/assets/step-three.webp";
+import { useWhatsAppRedirect } from "@/hooks/useWhatsAppRedirect";
 
 export function ParticipationSection() {
+  const { redirectToWhatsApp } = useWhatsAppRedirect();
+
   const steps = [
     [
       stepOne,
@@ -21,6 +24,10 @@ export function ParticipationSection() {
     ],
   ];
 
+  const handleStepClick = (stepTitle: string) => {
+    redirectToWhatsApp("passos_participacao", stepTitle);
+  };
+
   return (
     <section className="participation-section">
       <div className="section-inner">
@@ -33,7 +40,12 @@ export function ParticipationSection() {
         </p>
         <div className="participation-steps">
           {steps.map(([src, alt, text]) => (
-            <div className="participation-step" key={alt}>
+            <div
+              className="participation-step cursor-pointer"
+              key={alt}
+              onClick={() => handleStepClick(alt)}
+              title="Clique para tirar dúvidas sobre este passo via WhatsApp"
+            >
               <img src={src} alt={alt} loading="lazy" />
               <p>{text}</p>
             </div>

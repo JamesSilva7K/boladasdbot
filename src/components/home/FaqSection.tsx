@@ -2,9 +2,15 @@ import { useState } from "react";
 import { Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { questions } from "@/lib/constants";
+import { useWhatsAppRedirect } from "@/hooks/useWhatsAppRedirect";
 
 export function FaqSection() {
   const [openedQuestion, setOpenedQuestion] = useState<number | null>(null);
+  const { redirectToWhatsApp } = useWhatsAppRedirect();
+
+  const handleAskSupport = (questionText: string) => {
+    redirectToWhatsApp("duvida_item", questionText);
+  };
 
   return (
     <section className="faq-section" id="duvidas">
@@ -32,7 +38,14 @@ export function FaqSection() {
               </Button>
               {openedQuestion === index && (
                 <div className="faq-answer" id={`answer-${index}`}>
-                  {answer}
+                  <p>{answer}</p>
+                  <button
+                    type="button"
+                    onClick={() => handleAskSupport(question)}
+                    className="mt-3 inline-flex items-center text-xs text-[#518b2b] hover:underline font-semibold cursor-pointer"
+                  >
+                    💬 Falar com atendente sobre isso no WhatsApp →
+                  </button>
                 </div>
               )}
             </div>

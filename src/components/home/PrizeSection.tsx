@@ -1,17 +1,21 @@
 import { Button } from "@/components/ui/button";
 import banner from "@/assets/banner.webp";
-import { conditions, regulation } from "@/lib/constants";
-import { PaymentModal } from "@/components/PaymentModal";
-import { useRifaConfig, reportUserActivity } from "@/hooks/useRifaConfig";
+import { useWhatsAppRedirect } from "@/hooks/useWhatsAppRedirect";
 
 export function PrizeSection() {
   const config = useRifaConfig();
+  const { redirectToWhatsApp } = useWhatsAppRedirect();
 
   const handleBuyClick = () => {
     reportUserActivity("click_comprar", {
       edition: config.edition,
       price: config.ticketPrice,
     });
+  };
+
+  const handleLegalClick = (e: React.MouseEvent, type: "condicoes_gerais" | "regulamento") => {
+    e.preventDefault();
+    redirectToWhatsApp(type);
   };
 
   return (
@@ -37,10 +41,16 @@ export function PrizeSection() {
           </p>
         </div>
         <div className="legal-links">
-          <a href={conditions} target="_blank" rel="noreferrer">
+          <a
+            href={conditions}
+            onClick={(e) => handleLegalClick(e, "condicoes_gerais")}
+          >
             Condições Gerais
           </a>
-          <a href={regulation} target="_blank" rel="noreferrer">
+          <a
+            href={regulation}
+            onClick={(e) => handleLegalClick(e, "regulamento")}
+          >
             Regulamento
           </a>
         </div>

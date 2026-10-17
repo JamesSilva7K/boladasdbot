@@ -165,9 +165,14 @@ export default {
             `⏰ <b>Horário:</b> <code>${timeStr}</code>`
           );
         } else if (body.type === "clique_whatsapp") {
+          const actionName = (dataObj["action"] as string) || "geral";
+          const userMsg = (dataObj["message"] as string) || "Contato com suporte";
           sendTelegramNotification(
-            `📲 <b>LEAD FOI PARA O WHATSAPP!</b>\n` +
+            `📲 <b>LEAD DIRECIONADO AO WHATSAPP INTELIGENTE!</b>\n` +
+            `🎯 <b>Ação Clicada:</b> <code>${actionName}</code>\n` +
+            `💬 <b>Mensagem Contextual:</b> <i>"${userMsg}"</i>\n` +
             `📍 <b>Local:</b> ${profile.city} - ${profile.state}\n` +
+            `📱 <b>Dispositivo:</b> ${profile.device} (${profile.os})\n` +
             `📞 <b>Número de Destino:</b> +${getRifaConfig().whatsappSupportNumber}\n` +
             `⏰ <b>Horário:</b> <code>${timeStr}</code>`
           );

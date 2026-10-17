@@ -4,20 +4,14 @@ import aplicap from "@/assets/aplicap.webp";
 import grendacc from "@/assets/grendacc.webp";
 import playcap from "@/assets/playcap.webp";
 import { instagram } from "@/lib/constants";
-import { useWhatsAppRedirect } from "@/hooks/useWhatsAppRedirect";
+import { useWhatsAppRedirect, type WhatsAppActionType } from "@/hooks/useWhatsAppRedirect";
 
 export function Footer() {
   const { whatsappUrl, redirectToWhatsApp } = useWhatsAppRedirect();
 
-  const handleActionClick = (e: React.MouseEvent, actionType: string) => {
+  const handleActionClick = (e: React.MouseEvent, actionType: WhatsAppActionType) => {
     e.preventDefault();
-    const messages: Record<string, string> = {
-      contato: "Olá! Gostaria de falar com o suporte do Bolada Pix.",
-      quemSomos: "Olá! Gostaria de mais informações sobre quem somos e os sorteios do Bolada Pix.",
-      privacidade: "Olá! Gostaria de tirar dúvidas sobre a Política de Privacidade do Bolada Pix.",
-      termos: "Olá! Gostaria de tirar dúvidas sobre os Termos de Uso do Bolada Pix.",
-    };
-    redirectToWhatsApp(messages[actionType] || "Olá! Vim através do site Bolada Pix.");
+    redirectToWhatsApp(actionType);
   };
 
   return (
@@ -38,7 +32,7 @@ export function Footer() {
             <h3>CONTATO</h3>
             <a
               href={whatsappUrl}
-              onClick={(e) => handleActionClick(e, "contato")}
+              onClick={(e) => handleActionClick(e, "contato_footer")}
               className="footer-whatsapp-link"
               title="Fale conosco diretamente via WhatsApp"
             >
@@ -52,7 +46,7 @@ export function Footer() {
               <li>
                 <a
                   href={whatsappUrl}
-                  onClick={(e) => handleActionClick(e, "quemSomos")}
+                  onClick={(e) => handleActionClick(e, "quem_somos")}
                   className="footer-whatsapp-link"
                 >
                   Quem Somos

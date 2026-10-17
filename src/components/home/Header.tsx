@@ -3,10 +3,31 @@ import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.webp";
 import aplicap from "@/assets/aplicap.webp";
-import { navigation } from "@/lib/constants";
+import { useWhatsAppRedirect, type WhatsAppActionType } from "@/hooks/useWhatsAppRedirect";
 
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { redirectToWhatsApp } = useWhatsAppRedirect();
+
+  const handleNavClick = (e: React.MouseEvent, label: string) => {
+    if (label === "Início") {
+      setMenuOpen(false);
+      return;
+    }
+
+    e.preventDefault();
+    setMenuOpen(false);
+
+    const mapping: Record<string, WhatsAppActionType> = {
+      Ganhadores: "ganhadores",
+      "Meus Números": "meus_numeros",
+      "Quem Somos": "quem_somos",
+      "Fale Conosco": "fale_conosco",
+      "Edições Anteriores": "edicoes_anteriores",
+    };
+
+    redirectToWhatsApp(mapping[label] || "default");
+  };
 
   return (
     <header className="site-header">
@@ -20,7 +41,7 @@ export function Header() {
               key={label}
               className={index === 0 ? "active" : undefined}
               href={href}
-              onClick={() => setMenuOpen(false)}
+              onClick={(e) => handleNavClick(e, label)}
             >
               {label}
             </a>

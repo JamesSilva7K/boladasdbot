@@ -3,10 +3,16 @@ import instaOne from "@/assets/instagram-one.webp";
 import instaTwo from "@/assets/instagram-two.webp";
 import instaThree from "@/assets/instagram-three.webp";
 import instaFour from "@/assets/instagram-four.webp";
-import { original, instagram } from "@/lib/constants";
+import { useWhatsAppRedirect } from "@/hooks/useWhatsAppRedirect";
 
 export function InstagramSection() {
   const images = [instaOne, instaTwo, instaThree, instaFour];
+  const { redirectToWhatsApp } = useWhatsAppRedirect();
+
+  const handleInstaClick = (e: React.MouseEvent, postIndex?: number) => {
+    e.preventDefault();
+    redirectToWhatsApp("instagram", postIndex ? `Post #${postIndex}` : undefined);
+  };
 
   return (
     <section className="instagram-section">
@@ -16,7 +22,11 @@ export function InstagramSection() {
         </h2>
         <div className="instagram-grid">
           {images.map((image, index) => (
-            <a href={original} key={image}>
+            <a
+              href="#instagram"
+              key={image}
+              onClick={(e) => handleInstaClick(e, index + 1)}
+            >
               <img
                 src={image}
                 alt={`Bolada Pix — publicação ${index + 1}`}
@@ -25,10 +35,8 @@ export function InstagramSection() {
             </a>
           ))}
         </div>
-        <Button asChild variant="community">
-          <a href={instagram} target="_blank" rel="noreferrer">
-            SEGUIR
-          </a>
+        <Button variant="community" onClick={(e) => handleInstaClick(e)}>
+          SEGUIR
         </Button>
       </div>
     </section>

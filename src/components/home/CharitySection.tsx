@@ -1,7 +1,14 @@
 import grendaccPhoto from "@/assets/grendacc-photo.webp";
 import grendacc from "@/assets/grendacc.webp";
+import { useWhatsAppRedirect } from "@/hooks/useWhatsAppRedirect";
 
 export function CharitySection() {
+  const { redirectToWhatsApp } = useWhatsAppRedirect();
+
+  const handleCharityClick = () => {
+    redirectToWhatsApp("grendacc");
+  };
+
   return (
     <section className="charity-section" id="quem-somos">
       <div className="section-inner">
@@ -10,13 +17,20 @@ export function CharitySection() {
         </h2>
         <div className="charity-inner">
           <img
-            className="charity-photo"
+            className="charity-photo cursor-pointer"
             src={grendaccPhoto}
             alt="GRENDACC — Em defesa da criança com câncer"
             loading="lazy"
+            onClick={handleCharityClick}
           />
           <div className="charity-copy">
-            <img src={grendacc} alt="GRENDACC" loading="lazy" />
+            <img
+              src={grendacc}
+              alt="GRENDACC"
+              loading="lazy"
+              className="cursor-pointer"
+              onClick={handleCharityClick}
+            />
             <p>
               Em defesa da Criança com Câncer, a GRENDACC garante um tratamento
               gratuito digno, além de qualidade de vida não só para as crianças e
@@ -25,9 +39,12 @@ export function CharitySection() {
               neurologia, nefrologia, oncologia e cardiologia.
             </p>
             <p>
-              <strong>
+              <strong
+                className="cursor-pointer hover:underline text-[#518b2b]"
+                onClick={handleCharityClick}
+              >
                 Junte-se a nós nesta causa, que visa a luta social no combate ao
-                câncer.
+                câncer →
               </strong>
             </p>
           </div>
