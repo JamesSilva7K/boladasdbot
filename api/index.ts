@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import server from "../../dist/server/server.js";
+import server from "../dist/server/server.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
@@ -14,7 +14,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (Array.isArray(val)) {
           headers.set(key, val.join(", "));
         } else {
-          headers.set(key, val);
+          headers.set(key, String(val));
         }
       }
     }
