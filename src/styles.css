@@ -214,8 +214,10 @@
 .charity-section { padding: 10px 60px 40px; }
 .charity-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: center; margin-top: 35px; }
 .charity-photo { width: 500px; max-width: 100%; height: auto; margin: auto; }
-.charity-copy > img { width: 358px; max-width: 100%; }
-.charity-copy p { font-size: 18px; line-height: 1.6; }
+.charity-copy { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.charity-copy > img { width: 358px; max-width: 100%; margin: 0 auto 16px; display: block; }
+.charity-copy p { font-size: 18px; line-height: 1.6; text-align: center; }
+
 .instagram-section { padding: 40px 60px; text-align: center; }
 .instagram-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 15px; margin: 35px 0; }
 .instagram-grid img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
@@ -282,9 +284,11 @@
  .community-section { padding-top: 35px; padding-bottom: 40px; }
  .community-inner > img { width: 280px; }
  .community-button { width: 260px; height: 52px; font-size: 20px; }
- .charity-inner { margin-top: 25px; gap: 25px; }
- .charity-copy p { font-size: 16px; text-align: left; }
- .charity-copy > img { width: 280px; }
+ .charity-inner { margin-top: 25px; gap: 25px; align-items: center; justify-items: center; }
+ .charity-copy { display: flex; flex-direction: column; align-items: center; text-align: center; width: 100%; }
+ .charity-copy p { font-size: 16px; text-align: center; }
+ .charity-copy > img { width: 280px; max-width: 100%; margin: 0 auto 16px; display: block; }
+
  .instagram-section { padding-top: 30px; padding-bottom: 30px; }
  .instagram-grid { grid-template-columns: 1fr 1fr; gap: 10px; margin: 25px 0; }
  .footer-columns { grid-template-columns: 1fr; text-align: center; gap: 15px; }

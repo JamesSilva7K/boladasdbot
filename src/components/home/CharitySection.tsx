@@ -23,15 +23,16 @@ export function CharitySection() {
             loading="lazy"
             onClick={handleCharityClick}
           />
-          <div className="charity-copy">
+          <div className="charity-copy flex flex-col items-center text-center">
             <img
               src={grendacc}
               alt="GRENDACC"
               loading="lazy"
-              className="cursor-pointer"
+              className="cursor-pointer mx-auto block mb-4"
               onClick={handleCharityClick}
             />
-            <p>
+            <p className="text-center">
+
               Em defesa da Criança com Câncer, a GRENDACC garante um tratamento
               gratuito digno, além de qualidade de vida não só para as crianças e
               adolescentes com câncer, como também para os portadores de doenças
