@@ -41,6 +41,7 @@ export function PaymentModal({
   } | null>(null);
 
   const [tickets, setTickets] = useState<{ code: string; hash: string }[]>([]);
+  const [proofToken, setProofToken] = useState<string | null>(null);
   const [currentTxId, setCurrentTxId] = useState<string | null>(null);
   const [copiedCodes, setCopiedCodes] = useState(false);
   const [qrCodeSrc, setQrCodeSrc] = useState<string | null>(null);
@@ -99,6 +100,7 @@ export function PaymentModal({
         const res = await fetch(`/api/tickets/status?txId=${encodeURIComponent(currentTxId)}`);
         if (res.ok) {
           const data = await res.json();
+          if (data.proofToken) setProofToken(data.proofToken);
           if (data.hasTickets && Array.isArray(data.tickets)) {
             setTickets(data.tickets);
             clearInterval(interval);
@@ -223,7 +225,7 @@ export function PaymentModal({
 
   return (
     <>
-      <div onClick={handleOpenModal} className="w-full flex justify-center cursor-pointer">
+      <div onClick={handleOpenModal} className="inline-flex cursor-pointer">
         {children}
       </div>
       <Dialog open={open} onOpenChange={setOpen}>
@@ -246,46 +248,89 @@ export function PaymentModal({
           </DialogHeader>
 
           {tickets.length > 0 ? (
-            <div className="flex flex-col gap-4 py-2">
-              <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-900 text-sm">
-                ✅ <b>{tickets.length} cotas oficiais</b> geradas de 6 dígitos numéricos. Seus números já estão concorrendo!
+            <div className="flex flex-col gap-4 py-1">
+              {/* Banner de sucesso */}
+              <div className="flex flex-col items-center gap-1.5 py-3 px-4 bg-gradient-to-b from-green-50 to-white border border-green-200 rounded-xl text-center">
+                <span className="text-3xl">🎉</span>
+                <p className="text-sm font-bold text-green-800">
+                  Pagamento confirmado! Seus <span className="text-green-600">{tickets.length} números</span> estão concorrendo!
+                </p>
+                <p className="text-xs text-green-700 opacity-80">
+                  Guarde os códigos abaixo — eles são seus bilhetes oficiais
+                </p>
               </div>
 
-              <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50 flex flex-wrap gap-2">
-                {tickets.map((t, idx) => (
-                  <div
-                    key={t.code + idx}
-                    className="flex flex-col items-center justify-center bg-white border border-gray-300 rounded px-3 py-1.5 shadow-2xs font-mono"
-                  >
-                    <span className="text-xs text-gray-500 font-sans font-medium">#{idx + 1}</span>
-                    <span className="text-base font-extrabold text-[#4d8227] tracking-wider">{t.code}</span>
-                  </div>
-                ))}
+              {/* Selo Criptográfico Militar de Autenticidade */}
+              <div className="flex items-center justify-between bg-emerald-50/80 border border-emerald-200 rounded-lg px-3 py-2 text-xs text-emerald-800 shadow-2xs">
+                <div className="flex items-center gap-1.5 font-medium">
+                  <span>🛡️</span>
+                  <span>Compra Autenticada via <strong>AES-256-GCM</strong></span>
+                </div>
+                {proofToken && (
+                  <span className="font-mono text-[10px] text-emerald-900 font-bold bg-white px-2 py-0.5 rounded border border-emerald-200 shadow-2xs">
+                    RECIBO: {proofToken.substring(0, 10)}
+                  </span>
+                )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+              {/* Grid de bilhetes numerados */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">
+                    🎟️ Seus Bilhetes Oficiais
+                  </span>
+                  <span className="text-xs text-gray-400 font-mono">{tickets.length} cotas</span>
+                </div>
+
+                <div className="max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 p-2 flex flex-col gap-1">
+                  {tickets.map((t, idx) => (
+                    <div
+                      key={t.code + idx}
+                      className="flex items-center justify-between bg-white border border-gray-100 rounded-lg px-3 py-2 shadow-2xs"
+                    >
+                      <span className="text-[11px] text-gray-400 font-semibold font-sans w-6 shrink-0">
+                        #{String(idx + 1).padStart(2, "0")}
+                      </span>
+                      <span className="flex-1 text-center text-base font-extrabold text-[#4d8227] tracking-widest font-mono">
+                        {t.code}
+                      </span>
+                      <span className="text-[10px] text-green-600 font-bold bg-green-50 border border-green-100 rounded px-1.5 py-0.5 shrink-0">
+                        ATIVO
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Instruções */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 leading-relaxed">
+                ℹ️ <strong>Guarde seus números!</strong> Salve o comprovante em TXT ou copie os códigos. Você concorre automaticamente no sorteio do dia <strong>{cloakText("04/11 às 20:00")}</strong>.
+              </div>
+
+              {/* Botões de ação */}
+              <div className="grid grid-cols-2 gap-2">
                 <Button
                   onClick={handleCopyAllTickets}
                   variant="outline"
-                  className="w-full flex items-center justify-center gap-2 border-[#4d8227] text-[#4d8227] hover:bg-[#4d8227]/10"
+                  className="w-full flex items-center justify-center gap-2 border-[#4d8227] text-[#4d8227] hover:bg-[#4d8227]/10 text-sm font-semibold h-11"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                   </svg>
-                  {copiedCodes ? "Copiado!" : "Copiar Todas as Cotas"}
+                  {copiedCodes ? "✅ Copiado!" : "Copiar Todos"}
                 </Button>
 
                 <Button
                   onClick={handleDownloadTxt}
-                  className="w-full flex items-center justify-center gap-2 bg-[#4d8227] hover:bg-[#437422] text-white"
+                  className="w-full flex items-center justify-center gap-2 bg-[#4d8227] hover:bg-[#437422] text-white text-sm font-semibold h-11"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="7 10 12 15 17 10"></polyline>
                     <line x1="12" y1="15" x2="12" y2="3"></line>
                   </svg>
-                  Salvar Comprovante em TXT
+                  Salvar TXT
                 </Button>
               </div>
             </div>

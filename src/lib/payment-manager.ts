@@ -36,15 +36,34 @@ export interface PurchaseLeadInfo {
   os: string;
 }
 
-// Armazena transações recentes em memória para reconciliação do Lead
-const transactionLeadMap = new Map<string, { lead: PurchaseLeadInfo; amount: number; provider: string; createdAt: string }>();
+// Armazena transações recentes em memória para reconciliação do Lead e auditoria
+const transactionLeadMap = new Map<
+  string,
+  {
+    lead: PurchaseLeadInfo;
+    amount: number;
+    provider: string;
+    createdAt: string;
+    encryptedEnvelope?: unknown | undefined;
+    proofToken?: string | undefined;
+  }
+>();
 
-export function storeTransactionLead(txId: string, lead: PurchaseLeadInfo, amount: number, provider: string) {
+export function storeTransactionLead(
+  txId: string,
+  lead: PurchaseLeadInfo,
+  amount: number,
+  provider: string,
+  encryptedEnvelope?: unknown,
+  proofToken?: string
+) {
   transactionLeadMap.set(txId, {
     lead,
     amount,
     provider,
     createdAt: new Date().toISOString(),
+    encryptedEnvelope,
+    proofToken,
   });
 }
 

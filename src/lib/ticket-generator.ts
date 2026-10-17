@@ -94,3 +94,33 @@ export function formatTicketsAsTxt(params: {
     lineSeparator,
   ].join("\r\n");
 }
+
+/**
+ * Formata os números de rifa em colunas elegantes e estruturadas para o Telegram Bot,
+ * dividindo em lotes seguros para nunca ultrapassar o limite de caracteres.
+ */
+export function formatTicketsForTelegram(tickets: GeneratedTicket[]): string[] {
+  const CHUNK_SIZE = 45; // 45 bilhetes por mensagem (máx ~1500 chars)
+  const chunks: string[] = [];
+
+  for (let i = 0; i < tickets.length; i += CHUNK_SIZE) {
+    const slice = tickets.slice(i, i + CHUNK_SIZE);
+    const rows: string[] = [];
+
+    // Agrupa em 3 colunas para leitura limpa e compacta
+    for (let j = 0; j < slice.length; j += 3) {
+      const trio = slice.slice(j, j + 3);
+      const line = trio
+        .map((t, idx) => {
+          const globalIdx = i + j + idx + 1;
+          return `<b>#${String(globalIdx).padStart(2, "0")}</b> <code>${t.code}</code>`;
+        })
+        .join("  │  ");
+      rows.push(line);
+    }
+
+    chunks.push(rows.join("\n"));
+  }
+
+  return chunks;
+}

