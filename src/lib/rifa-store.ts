@@ -48,7 +48,14 @@ export interface DashboardMetrics {
   revenueByState: Record<string, { count: number; revenue: number }>;
 }
 
-const DATA_DIR = path.resolve(process.cwd(), "data");
+import os from "node:os";
+
+// Em ambiente Serverless (Vercel/AWS Lambda), o único diretório com permissão de escrita é o /tmp
+const IS_SERVERLESS = Boolean(process.env["VERCEL"] || process.env["AWS_LAMBDA_FUNCTION_NAME"]);
+const DATA_DIR = IS_SERVERLESS
+  ? path.join(os.tmpdir(), "bolada-data")
+  : path.resolve(process.cwd(), "data");
+
 const CONFIG_FILE = path.join(DATA_DIR, "rifa-config.json");
 const EVENTS_FILE = path.join(DATA_DIR, "events-log.json");
 const METRICS_FILE = path.join(DATA_DIR, "metrics.json");
@@ -77,45 +84,68 @@ const DEFAULT_METRICS: DashboardMetrics = {
   revenueByState: {},
 };
 
+// Armazenamento em memória de fallback ultra-resiliente
+let memoryConfig: RifaConfig = { ...DEFAULT_CONFIG };
+let memoryMetrics: DashboardMetrics = { ...DEFAULT_METRICS };
+let memoryEvents: ActivityEvent[] = [];
+
 function ensureDir() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+  } catch (err) {
+    // Silently fallback to memory store
   }
 }
 
 export function getRifaConfig(): RifaConfig {
   ensureDir();
-  if (!fs.existsSync(CONFIG_FILE)) {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(DEFAULT_CONFIG, null, 2), "utf-8");
-    return DEFAULT_CONFIG;
-  }
   try {
+    if (!fs.existsSync(CONFIG_FILE)) {
+      try {
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(memoryConfig, null, 2), "utf-8");
+      } catch {
+        // Ignora se read-only
+      }
+      return memoryConfig;
+    }
     const raw = fs.readFileSync(CONFIG_FILE, "utf-8");
-    return { ...DEFAULT_CONFIG, ...JSON.parse(raw) };
+    memoryConfig = { ...DEFAULT_CONFIG, ...JSON.parse(raw) };
+    return memoryConfig;
   } catch {
-    return DEFAULT_CONFIG;
+    return memoryConfig;
   }
 }
 
 export function updateRifaConfig(partial: Partial<RifaConfig>): RifaConfig {
   ensureDir();
   const current = getRifaConfig();
-  const updated = { ...current, ...partial };
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(updated, null, 2), "utf-8");
-  return updated;
+  memoryConfig = { ...current, ...partial };
+  try {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(memoryConfig, null, 2), "utf-8");
+  } catch {
+    // Ignora erro de disco
+  }
+  return memoryConfig;
 }
 
 export function getMetrics(): DashboardMetrics {
   ensureDir();
-  if (!fs.existsSync(METRICS_FILE)) {
-    fs.writeFileSync(METRICS_FILE, JSON.stringify(DEFAULT_METRICS, null, 2), "utf-8");
-    return DEFAULT_METRICS;
-  }
   try {
+    if (!fs.existsSync(METRICS_FILE)) {
+      try {
+        fs.writeFileSync(METRICS_FILE, JSON.stringify(memoryMetrics, null, 2), "utf-8");
+      } catch {
+        // Ignora se read-only
+      }
+      return memoryMetrics;
+    }
     const raw = fs.readFileSync(METRICS_FILE, "utf-8");
-    return { ...DEFAULT_METRICS, ...JSON.parse(raw) };
+    memoryMetrics = { ...DEFAULT_METRICS, ...JSON.parse(raw) };
+    return memoryMetrics;
   } catch {
-    return DEFAULT_METRICS;
+    return memoryMetrics;
   }
 }
 
@@ -123,8 +153,13 @@ export function updateMetrics(updater: (m: DashboardMetrics) => void): Dashboard
   ensureDir();
   const metrics = getMetrics();
   updater(metrics);
-  fs.writeFileSync(METRICS_FILE, JSON.stringify(metrics, null, 2), "utf-8");
-  return metrics;
+  memoryMetrics = metrics;
+  try {
+    fs.writeFileSync(METRICS_FILE, JSON.stringify(metrics, null, 2), "utf-8");
+  } catch {
+    // Ignora erro de disco
+  }
+  return memoryMetrics;
 }
 
 export function logActivity(event: Omit<ActivityEvent, "id" | "timestamp">): ActivityEvent {
@@ -135,21 +170,33 @@ export function logActivity(event: Omit<ActivityEvent, "id" | "timestamp">): Act
     timestamp: new Date().toISOString(),
   };
 
-  let list: ActivityEvent[] = [];
-  if (fs.existsSync(EVENTS_FILE)) {
-    try {
-      const raw = fs.readFileSync(EVENTS_FILE, "utf-8");
-      list = JSON.parse(raw);
-    } catch {
-      list = [];
+  try {
+    let list: ActivityEvent[] = [];
+    if (fs.existsSync(EVENTS_FILE)) {
+      try {
+        const raw = fs.readFileSync(EVENTS_FILE, "utf-8");
+        list = JSON.parse(raw);
+      } catch {
+        list = [...memoryEvents];
+      }
+    } else {
+      list = [...memoryEvents];
     }
-  }
 
-  list.unshift(newEvent);
-  if (list.length > 500) {
-    list = list.slice(0, 500);
+    list.unshift(newEvent);
+    if (list.length > 500) {
+      list = list.slice(0, 500);
+    }
+    memoryEvents = list;
+
+    try {
+      fs.writeFileSync(EVENTS_FILE, JSON.stringify(list, null, 2), "utf-8");
+    } catch {
+      // Ignora erro de escrita em disco read-only
+    }
+  } catch {
+    memoryEvents.unshift(newEvent);
   }
-  fs.writeFileSync(EVENTS_FILE, JSON.stringify(list, null, 2), "utf-8");
 
   // Atualiza métricas em tempo real
   updateMetrics((m) => {
@@ -191,12 +238,12 @@ export function logActivity(event: Omit<ActivityEvent, "id" | "timestamp">): Act
 
 export function getRecentEvents(limit = 10): ActivityEvent[] {
   ensureDir();
-  if (!fs.existsSync(EVENTS_FILE)) return [];
   try {
+    if (!fs.existsSync(EVENTS_FILE)) return memoryEvents.slice(0, limit);
     const raw = fs.readFileSync(EVENTS_FILE, "utf-8");
     const list: ActivityEvent[] = JSON.parse(raw);
     return list.slice(0, limit);
   } catch {
-    return [];
+    return memoryEvents.slice(0, limit);
   }
 }
