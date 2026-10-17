@@ -95,7 +95,8 @@ export class PaymentManager {
     });
 
     if (!response.ok) {
-      throw new Error(`União 7 Pay retornou HTTP ${response.status}`);
+      const errBody = await response.text().catch(() => "");
+      throw new Error(`União 7 Pay retornou HTTP ${response.status}: ${errBody}`);
     }
 
     const resJson = await response.json();
@@ -144,7 +145,8 @@ export class PaymentManager {
     });
 
     if (!response.ok) {
-      throw new Error(`Elite PAYbr retornou HTTP ${response.status}`);
+      const errBody = await response.text().catch(() => "");
+      throw new Error(`Elite PAYbr retornou HTTP ${response.status}: ${errBody}`);
     }
 
     const resJson = await response.json();
@@ -168,9 +170,10 @@ export class PaymentManager {
     };
   }
 
-  // Orquestrador Central com Failover Automático
+  // Orquestrador Central com Failover Inteligente e Roteamento por Valor
   public static async createPixCharge(data: PixChargeRequest): Promise<PixChargeResponse> {
-    if (this.uniaoFailCount < this.maxFailuresBeforeSwitch) {
+    // 1. Se valor for >= R$ 20,00, a União 7 Pay é a preferencial (taxa menor de R$ 0,50)
+    if (data.amount >= 20.00 && this.uniaoFailCount < this.maxFailuresBeforeSwitch) {
       try {
         const result = await this.chargeUniao7(data);
         this.uniaoFailCount = 0;
@@ -181,12 +184,30 @@ export class PaymentManager {
       }
     }
 
-    console.log("[Failover] Acionando Gateway de Reserva: Elite PAYbr...");
+    // 2. Para valores menores que R$ 20,00 ou quando União 7 falha, aciona Elite PAYbr
+    console.log("[PaymentManager] Acionando Gateway: Elite PAYbr...");
     try {
-      const result = await this.chargeElitePay(data);
+      // Garante piso mínimo da tarifa de depósito da Elite PAYbr (R$ 2,00)
+      const sanitizedAmount = Math.max(Number(data.amount) || 0, 2.00);
+      const result = await this.chargeElitePay({
+        ...data,
+        amount: sanitizedAmount,
+      });
       return result;
     } catch (eliteErr) {
-      console.error("[Failover] Ambas as adquirentes falharam:", eliteErr);
+      console.error("[PaymentManager] Falha ao gerar PIX na Elite PAYbr:", eliteErr);
+
+      // Se falhou na Elite PAYbr e o valor for >= 20 e ainda não tentamos a União 7:
+      if (data.amount >= 20.00) {
+        try {
+          console.log("[PaymentManager] Tentativa reversa na União 7 Pay...");
+          const fallbackUniao = await this.chargeUniao7(data);
+          return fallbackUniao;
+        } catch (uniaoErr) {
+          console.error("[PaymentManager] União 7 Pay também falhou:", uniaoErr);
+        }
+      }
+
       return {
         success: false,
         provider: "Elite PAYbr",

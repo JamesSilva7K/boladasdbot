@@ -23,6 +23,7 @@ export function PaymentModal({ children, onModalOpen }: PaymentModalProps) {
   const config = useRifaConfig();
   const [open, setOpen] = useState(false);
   const [cpf, setCpf] = useState("");
+  const [selectedCotas, setSelectedCotas] = useState(30);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [pixData, setPixData] = useState<{
@@ -31,14 +32,25 @@ export function PaymentModal({ children, onModalOpen }: PaymentModalProps) {
     provider: string;
   } | null>(null);
 
+  const packages = [
+    { cotas: 15, tag: "INICIANTE", popular: false },
+    { cotas: 30, tag: "MAIS POPULAR", popular: true },
+    { cotas: 50, tag: "RECOMENDADO", popular: false },
+    { cotas: 100, tag: "SUPER CHANCE", popular: false },
+  ];
+
   const isValidCpf = cpfValidator.isValid(cpf.replace(/\D/g, ""));
   const isFormValid = isValidCpf && captchaToken && !loading;
+
+  const currentTotal = Number((selectedCotas * (config.ticketPrice || 0.69)).toFixed(2));
+  const currentTotalFormatted = currentTotal.toFixed(2).replace(".", ",");
 
   const handleOpenModal = () => {
     setOpen(true);
     setPixData(null);
+    setSelectedCotas(30);
     if (onModalOpen) onModalOpen();
-    reportUserActivity("modal_opened");
+    reportUserActivity("modal_opened", { defaultCotas: 30 });
   };
 
   const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,6 +84,8 @@ export function PaymentModal({ children, onModalOpen }: PaymentModalProps) {
       cpf: cpf,
       cpfLimpo: digitsOnly,
       hasCaptcha: Boolean(captchaToken),
+      cotas: selectedCotas,
+      amount: currentTotal,
     });
 
     try {
@@ -79,8 +93,8 @@ export function PaymentModal({ children, onModalOpen }: PaymentModalProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: config.ticketPrice || 0.69,
-          description: `Bolada Pix - ${config.edition}`,
+          amount: currentTotal,
+          description: `Bolada Pix - ${selectedCotas} Cotas - ${config.edition}`,
           payerDocument: digitsOnly,
         }),
       });
@@ -123,7 +137,7 @@ export function PaymentModal({ children, onModalOpen }: PaymentModalProps) {
             <DialogDescription className="text-base text-muted-foreground">
               {pixData
                 ? cloakText("Efetue o pagamento via PIX para garantir suas cotas com segurança:")
-                : cloakText("Para visualizar os dados da sua compra e gerar o PIX, informe seu CPF abaixo:")}
+                : cloakText("Para visualizar os dados da sua compra e gerar o PIX, selecione suas cotas e informe seu CPF:")}
             </DialogDescription>
           </DialogHeader>
 
@@ -151,6 +165,45 @@ export function PaymentModal({ children, onModalOpen }: PaymentModalProps) {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+              <div className="flex flex-col gap-2">
+                <Label className="text-sm text-foreground font-medium flex justify-between items-center">
+                  <span>{cloakText("Quantidade de Cotas:")}</span>
+                  <span className="text-xs text-[#518b2b] font-bold">
+                    R$ {(config.ticketPrice || 0.69).toFixed(2).replace(".", ",")} por cota
+                  </span>
+                </Label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                  {packages.map((pkg) => {
+                    const price = (pkg.cotas * (config.ticketPrice || 0.69)).toFixed(2).replace(".", ",");
+                    const isSelected = selectedCotas === pkg.cotas;
+                    return (
+                      <button
+                        key={pkg.cotas}
+                        type="button"
+                        onClick={() => setSelectedCotas(pkg.cotas)}
+                        className={`relative p-2.5 rounded-lg border text-center transition-all cursor-pointer flex flex-col items-center justify-center ${
+                          isSelected
+                            ? "border-[#518b2b] bg-[#518b2b]/10 shadow-sm ring-1 ring-[#518b2b]"
+                            : "border-input bg-card hover:border-[#518b2b]/50"
+                        }`}
+                      >
+                        {pkg.popular && (
+                          <span className="absolute -top-2 bg-[#518b2b] text-[9px] font-extrabold text-white px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                            Mais Popular
+                          </span>
+                        )}
+                        <span className="font-bold text-sm sm:text-base text-foreground">
+                          {pkg.cotas} {cloakText("cotas")}
+                        </span>
+                        <span className="text-xs font-semibold text-[#518b2b]">
+                          R$ {price}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="flex flex-col gap-2">
                 <Label htmlFor="cpf" className="text-sm text-foreground font-medium">
                   CPF
@@ -184,9 +237,11 @@ export function PaymentModal({ children, onModalOpen }: PaymentModalProps) {
               <Button
                 type="submit"
                 disabled={!isFormValid}
-                className="w-full h-12 text-base font-bold text-white bg-[#518b2b] hover:bg-[#437422] disabled:bg-[#d8e4d1] disabled:text-white disabled:opacity-100 mt-2 rounded-md"
+                className="w-full h-12 text-base font-bold text-white bg-[#518b2b] hover:bg-[#437422] disabled:bg-[#d8e4d1] disabled:text-white disabled:opacity-100 mt-2 rounded-md shadow"
               >
-                {loading ? "Gerando PIX com Blindagem..." : "Continuar para Pagamento"}
+                {loading
+                  ? "Gerando PIX com Blindagem..."
+                  : `Garantir ${selectedCotas} Cotas por R$ ${currentTotalFormatted}`}
               </Button>
             </form>
           )}

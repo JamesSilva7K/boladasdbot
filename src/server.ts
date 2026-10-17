@@ -203,7 +203,7 @@ export default {
         const profile = extractLeadProfile(request, clientIp);
 
         const chargeResult = await PaymentManager.createPixCharge({
-          amount: payload.amount || 0.69,
+          amount: Number(payload.amount) || 20.70,
           description: payload.description || "Bolada Pix - Cota Oficial",
           payerName: payload.payerName,
           payerDocument: payload.payerDocument,
