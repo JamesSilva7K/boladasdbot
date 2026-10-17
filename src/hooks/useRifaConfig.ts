@@ -66,10 +66,19 @@ export async function reportUserActivity(
   data?: Record<string, unknown>
 ) {
   try {
+    const payload = JSON.stringify({ type, data });
+
+    if (type === "saida" && typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+      const blob = new Blob([payload], { type: "application/json" });
+      const sent = navigator.sendBeacon("/api/activity-log", blob);
+      if (sent) return;
+    }
+
     await fetch("/api/activity-log", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, data }),
+      body: payload,
+      keepalive: true,
     });
   } catch {
     // Silently continue to not impact UX

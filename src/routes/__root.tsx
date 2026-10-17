@@ -11,6 +11,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import { cloakText } from "../lib/cloaker";
 
 function NotFoundComponent() {
   return (
@@ -77,10 +78,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Bolada Pix" },
-      { name: "description", content: "Bolada Pix — Prêmios incríveis que podem mudar seu estilo de vida." },
-      { property: "og:title", content: "Bolada Pix" },
-      { property: "og:description", content: "Prêmios incríveis que podem mudar seu estilo de vida." },
+      { title: cloakText("Bolada Pix") },
+      { name: "description", content: cloakText("Bolada Pix — Prêmios incríveis que podem mudar seu estilo de vida.") },
+      { property: "og:title", content: cloakText("Bolada Pix") },
+      { property: "og:description", content: cloakText("Prêmios incríveis que podem mudar seu estilo de vida.") },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -89,7 +90,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/logo.webp", type: "image/webp" },
+      { rel: "shortcut icon", href: "/favicon.ico" },
+      { rel: "apple-touch-icon", href: "/logo.webp" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@400;600;700;900&family=Oswald:wght@600;700&family=DM+Sans:wght@400;500;700&display=swap" },
     ],
   }),

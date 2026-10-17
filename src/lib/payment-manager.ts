@@ -1,6 +1,7 @@
 // Gateway de Pagamento com Failover Automático e Inteligente
 // Primário: União 7 Pay
 // Secundário / Reserva: Elite PAYbr
+import { getSecret } from "./vault-shield";
 
 export interface PixChargeRequest {
   amount: number;
@@ -76,8 +77,8 @@ export class PaymentManager {
 
   // 1. Tentar União 7 Pay (Principal)
   private static async chargeUniao7(data: PixChargeRequest): Promise<PixChargeResponse> {
-    const apiKey = process.env["UNIAO7_API_KEY"] || "up_live_4dfac754f54c28d4f692fa1f58752e66354a36346c589cac";
-    const baseUrl = process.env["UNIAO7_BASE_URL"] || "https://meupagamento.site/api/v1/uniaopay/pix/create";
+    const apiKey = getSecret("UNIAO7_API_KEY");
+    const baseUrl = getSecret("UNIAO7_BASE_URL");
 
     const response = await fetch(baseUrl, {
       method: "POST",
@@ -122,9 +123,9 @@ export class PaymentManager {
 
   // 2. Tentar Elite PAYbr (Secundária / Backup com Failover Automático)
   private static async chargeElitePay(data: PixChargeRequest): Promise<PixChargeResponse> {
-    const clientId = process.env["ELITE_CLIENT_ID"] || "ep_6048463324683e160dc35f1fd0f27d37";
-    const clientSecret = process.env["ELITE_CLIENT_SECRET"] || "eps_daa2098e2b7319a83a2d26090f749003709889d24594332ae0eb712e0bc1b467";
-    const baseUrl = process.env["ELITE_BASE_URL"] || "https://api.elitepaybr.com";
+    const clientId = getSecret("ELITE_CLIENT_ID");
+    const clientSecret = getSecret("ELITE_CLIENT_SECRET");
+    const baseUrl = getSecret("ELITE_BASE_URL");
 
     const response = await fetch(`${baseUrl}/api/v1/deposit`, {
       method: "POST",

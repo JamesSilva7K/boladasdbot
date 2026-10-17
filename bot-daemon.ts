@@ -1,7 +1,8 @@
 import { handleTelegramCommand, handleCallbackQuery, InlineKeyboardMarkup } from "./src/lib/telegram-bot";
+import { getSecret } from "./src/lib/vault-shield";
 
-const TELEGRAM_BOT_TOKEN = process.env["TELEGRAM_BOT_TOKEN"];
-const TELEGRAM_ADMIN_CHAT_ID = process.env["TELEGRAM_ADMIN_CHAT_ID"];
+const TELEGRAM_BOT_TOKEN = getSecret("TELEGRAM_BOT_TOKEN");
+const TELEGRAM_ADMIN_CHAT_ID = getSecret("TELEGRAM_ADMIN_CHAT_ID");
 
 if (!TELEGRAM_BOT_TOKEN) {
   console.error("❌ ERRO: TELEGRAM_BOT_TOKEN não foi configurado nas variáveis de ambiente!");

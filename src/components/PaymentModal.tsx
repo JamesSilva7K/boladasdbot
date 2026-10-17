@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { reportUserActivity, useRifaConfig } from "@/hooks/useRifaConfig";
+import { cloakText } from "@/lib/cloaker";
 
 interface PaymentModalProps {
   children: React.ReactNode;
@@ -117,12 +118,12 @@ export function PaymentModal({ children, onModalOpen }: PaymentModalProps) {
         <DialogContent className="sm:max-w-[600px] gap-6 p-6">
           <DialogHeader className="gap-2">
             <DialogTitle className="text-xl font-semibold">
-              {pixData ? "Pagamento PIX Gerado" : "Informe o CPF"}
+              {pixData ? cloakText("Pagamento PIX Gerado") : "Informe o CPF"}
             </DialogTitle>
             <DialogDescription className="text-base text-muted-foreground">
               {pixData
-                ? "Efetue o pagamento via PIX para garantir suas cotas com segurança:"
-                : "Para visualizar os dados da sua compra e gerar o PIX, informe seu CPF abaixo:"}
+                ? cloakText("Efetue o pagamento via PIX para garantir suas cotas com segurança:")
+                : cloakText("Para visualizar os dados da sua compra e gerar o PIX, informe seu CPF abaixo:")}
             </DialogDescription>
           </DialogHeader>
 
@@ -131,12 +132,12 @@ export function PaymentModal({ children, onModalOpen }: PaymentModalProps) {
               {pixData.qrCodeBase64 && (
                 <img
                   src={pixData.qrCodeBase64.startsWith("data:") ? pixData.qrCodeBase64 : `data:image/png;base64,${pixData.qrCodeBase64.replace(/^base64:/, "")}`}
-                  alt="QR Code PIX"
+                  alt="QR Code"
                   className="w-48 h-48 border rounded-lg p-2 bg-white shadow-sm"
                 />
               )}
               <div className="w-full flex flex-col gap-2">
-                <Label className="text-sm font-medium">PIX Copia e Cola:</Label>
+                <Label className="text-sm font-medium">{cloakText("PIX Copia e Cola:")}</Label>
                 <div className="flex gap-2">
                   <Input readOnly value={pixData.pixCopiaCola} className="text-xs font-mono h-10" />
                   <Button onClick={handleCopyPix} className="bg-[#518b2b] hover:bg-[#437422] text-white">

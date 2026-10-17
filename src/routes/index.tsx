@@ -9,21 +9,24 @@ import { CharitySection } from "@/components/home/CharitySection";
 import { InstagramSection } from "@/components/home/InstagramSection";
 import { Footer } from "@/components/home/Footer";
 import { reportUserActivity } from "@/hooks/useRifaConfig";
+import { cloakText } from "@/lib/cloaker";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Bolada Pix — Prêmios incríveis" },
+      { title: cloakText("Bolada Pix — Prêmios incríveis") },
       {
         name: "description",
-        content:
-          "Concorra a 300 mil reais na sua conta com Bolada Pix. Sorteio pela Loteria Federal. Confira as condições e participe.",
+        content: cloakText(
+          "Concorra a 300 mil reais na sua conta com Bolada Pix. Sorteio pela Loteria Federal. Confira as condições e participe."
+        ),
       },
-      { property: "og:title", content: "Bolada Pix — Prêmios incríveis" },
+      { property: "og:title", content: cloakText("Bolada Pix — Prêmios incríveis") },
       {
         property: "og:description",
-        content:
-          "Concorra a 300 mil reais na sua conta. Confira o sorteio Bolada Pix e as condições de participação.",
+        content: cloakText(
+          "Concorra a 300 mil reais na sua conta. Confira o sorteio Bolada Pix e as condições de participação."
+        ),
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -37,13 +40,28 @@ function Index() {
     // Registra a entrada real do usuário
     reportUserActivity("entrada", { path: "/" });
 
-    const handleBeforeUnload = () => {
-      reportUserActivity("saida");
+    let hasReportedExit = false;
+    const handleExit = () => {
+      if (!hasReportedExit) {
+        hasReportedExit = true;
+        reportUserActivity("saida");
+      }
     };
 
-    window.addEventListener("beforeunload", handleBeforeUnload);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        handleExit();
+      }
+    };
+
+    window.addEventListener("pagehide", handleExit);
+    window.addEventListener("beforeunload", handleExit);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("pagehide", handleExit);
+      window.removeEventListener("beforeunload", handleExit);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 

@@ -4,6 +4,7 @@ import { conditions, regulation } from "@/lib/constants";
 import { PaymentModal } from "@/components/PaymentModal";
 import { useRifaConfig, reportUserActivity } from "@/hooks/useRifaConfig";
 import { useWhatsAppRedirect } from "@/hooks/useWhatsAppRedirect";
+import { cloakText } from "@/lib/cloaker";
 
 export function PrizeSection() {
   const config = useRifaConfig();
@@ -22,7 +23,7 @@ export function PrizeSection() {
   };
 
   return (
-    <section className="prize-section" aria-label="Sorteio Bolada Pix">
+    <section className="prize-section" aria-label={cloakText("Sorteio Bolada Pix")}>
       <img
         className="prize-banner"
         src={banner}
@@ -35,23 +36,23 @@ export function PrizeSection() {
         </PaymentModal>
         <div className="draw-information">
           <p>
-            Sorteio dia<br />
+            {cloakText("Sorteio dia")}<br />
             <strong>{config.drawDate} {config.drawTime}</strong>
           </p>
           <p>
-            O sorteio será realizado<br />
-            <strong>{config.lotteryMethod}</strong>
+            {cloakText("O sorteio será realizado")}<br />
+            <strong>{cloakText(config.lotteryMethod)}</strong>
           </p>
         </div>
         <div className="legal-links">
           <a
-            href={conditions}
+            href="#condicoes"
             onClick={(e) => handleLegalClick(e, "condicoes_gerais")}
           >
             Condições Gerais
           </a>
           <a
-            href={regulation}
+            href="#regulamento"
             onClick={(e) => handleLegalClick(e, "regulamento")}
           >
             Regulamento

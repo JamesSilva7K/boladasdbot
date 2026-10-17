@@ -2,6 +2,7 @@ import stepOne from "@/assets/step-one.webp";
 import stepTwo from "@/assets/step-two.webp";
 import stepThree from "@/assets/step-three.webp";
 import { useWhatsAppRedirect } from "@/hooks/useWhatsAppRedirect";
+import { cloakText } from "@/lib/cloaker";
 
 export function ParticipationSection() {
   const { redirectToWhatsApp } = useWhatsAppRedirect();
@@ -10,17 +11,17 @@ export function ParticipationSection() {
     [
       stepOne,
       "Escolha seu título",
-      "Você pode escolher quantos títulos quiser! Quanto mais selecionar, mais chances você tem de ganhar!",
+      cloakText("Você pode escolher quantos títulos quiser! Quanto mais selecionar, mais chances você tem de ganhar!"),
     ],
     [
       stepTwo,
       "Efetue o pagamento",
-      "Fácil e seguro! E você pode pagar via pix!",
+      cloakText("Fácil e seguro! E você pode pagar via pix!"),
     ],
     [
       stepThree,
       "Pronto!",
-      'Agora você já está participando! Você pode consultar o seu bilhete em "Meus números"',
+      cloakText('Agora você já está participando! Você pode consultar o seu bilhete em "Meus números"'),
     ],
   ];
 

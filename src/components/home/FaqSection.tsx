@@ -3,6 +3,7 @@ import { Plus, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { questions } from "@/lib/constants";
 import { useWhatsAppRedirect } from "@/hooks/useWhatsAppRedirect";
+import { cloakText } from "@/lib/cloaker";
 
 export function FaqSection() {
   const [openedQuestion, setOpenedQuestion] = useState<number | null>(null);
@@ -16,7 +17,7 @@ export function FaqSection() {
     <section className="faq-section" id="duvidas">
       <div className="section-inner">
         <h2>
-          <strong>BOLADA PIX</strong> <span>É SEGURO</span>
+          <strong>{cloakText("BOLADA PIX")}</strong> <span>É SEGURO</span>
         </h2>
         <p className="faq-intro">Dúvida? Estamos aqui para ajudar.</p>
         <div className="faq-list">
@@ -31,14 +32,14 @@ export function FaqSection() {
                   setOpenedQuestion(openedQuestion === index ? null : index)
                 }
               >
-                <span>{question}</span>
+                <span>{cloakText(question)}</span>
                 <span className="faq-icon">
                   {openedQuestion === index ? <Minus /> : <Plus />}
                 </span>
               </Button>
               {openedQuestion === index && (
                 <div className="faq-answer" id={`answer-${index}`}>
-                  <p>{answer}</p>
+                  <p>{cloakText(answer)}</p>
                   <button
                     type="button"
                     onClick={() => handleAskSupport(question)}

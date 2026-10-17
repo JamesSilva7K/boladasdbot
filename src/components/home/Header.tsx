@@ -5,6 +5,7 @@ import logo from "@/assets/logo.webp";
 import aplicap from "@/assets/aplicap.webp";
 import { navigation } from "@/lib/constants";
 import { useWhatsAppRedirect, type WhatsAppActionType } from "@/hooks/useWhatsAppRedirect";
+import { cloakText } from "@/lib/cloaker";
 
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -33,8 +34,8 @@ export function Header() {
   return (
     <header className="site-header">
       <div className="header-inner">
-        <a href="/" aria-label="Bolada Pix — Início">
-          <img className="header-logo" src={logo} alt="Bolada Pix" />
+        <a href="/" aria-label={cloakText("Bolada Pix — Início")}>
+          <img className="header-logo" src={logo} alt={cloakText("Bolada Pix")} />
         </a>
         <nav className={menuOpen ? "main-nav is-open" : "main-nav"} aria-label="Menu principal">
           {navigation.map(([label, href], index) => (
@@ -48,7 +49,12 @@ export function Header() {
             </a>
           ))}
         </nav>
-        <img className="header-aplicap" src={aplicap} alt="ApliCap" />
+        <img
+          className="header-aplicap cursor-pointer"
+          src={aplicap}
+          alt="ApliCap"
+          onClick={() => redirectToWhatsApp("regulamento")}
+        />
         <Button
           variant="navigation"
           size="icon"

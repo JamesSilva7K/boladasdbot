@@ -1,8 +1,14 @@
 import { getRifaConfig, updateRifaConfig, getRecentEvents, getMetrics, type RifaConfig } from "./rifa-store";
 import { PaymentManager } from "./payment-manager";
+import { getSecret } from "./vault-shield";
 
-const TELEGRAM_BOT_TOKEN = process.env["TELEGRAM_BOT_TOKEN"] || "";
-const TELEGRAM_ADMIN_CHAT_ID = process.env["TELEGRAM_ADMIN_CHAT_ID"] || "";
+function getTelegramToken(): string {
+  return getSecret("TELEGRAM_BOT_TOKEN");
+}
+
+function getTelegramAdminChatId(): string {
+  return getSecret("TELEGRAM_ADMIN_CHAT_ID");
+}
 
 let lastBotMessageId: number | null = null;
 
@@ -62,7 +68,10 @@ export async function sendTelegramNotification(
   text: string,
   options: SendMessageOptions = { parseMode: "HTML", replyToMessageId: null, editLastMessage: false }
 ) {
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_ADMIN_CHAT_ID) {
+  const token = getTelegramToken();
+  const adminChatId = getTelegramAdminChatId();
+
+  if (!token || !adminChatId) {
     console.log("[Telegram Bot Simulation]");
     console.log(text);
     return false;
@@ -70,9 +79,9 @@ export async function sendTelegramNotification(
 
   try {
     if (options.editLastMessage && lastBotMessageId) {
-      const editUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`;
+      const editUrl = `https://api.telegram.org/bot${token}/editMessageText`;
       const editPayload: Record<string, unknown> = {
-        chat_id: TELEGRAM_ADMIN_CHAT_ID,
+        chat_id: adminChatId,
         message_id: lastBotMessageId,
         text,
         parse_mode: options.parseMode || "HTML",
@@ -91,9 +100,9 @@ export async function sendTelegramNotification(
       if (editData.ok) return true;
     }
 
-    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    const url = `https://api.telegram.org/bot${token}/sendMessage`;
     const payload: Record<string, unknown> = {
-      chat_id: TELEGRAM_ADMIN_CHAT_ID,
+      chat_id: adminChatId,
       text,
       parse_mode: options.parseMode || "HTML",
       disable_web_page_preview: true,
