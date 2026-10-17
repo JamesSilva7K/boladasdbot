@@ -269,8 +269,10 @@ export default {
         return new Response(JSON.stringify(chargeResult), {
           headers: { "Content-Type": "application/json", ...MILITARY_SECURITY_HEADERS },
         });
-      } catch (err) {
-        return new Response(JSON.stringify({ success: false, error: "Payment initiation error" }), {
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : "Payment initiation error";
+        console.error("[Create Pix Error]:", err);
+        return new Response(JSON.stringify({ success: false, error: errorMsg }), {
           status: 500,
           headers: { "Content-Type": "application/json", ...MILITARY_SECURITY_HEADERS },
         });

@@ -46,10 +46,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const reqUrl = req.url || "/";
 
-    // Se for requisição de arquivo estático (/assets, favicon, etc.), tenta servir imediatamente
+    // Se for requisição de arquivo estático (/assets, favicon, logo, etc.), tenta servir imediatamente
     if (
       reqUrl.startsWith("/assets/") ||
       reqUrl === "/favicon.ico" ||
+      reqUrl === "/logo.webp" ||
       reqUrl === "/robots.txt"
     ) {
       if (tryServeStaticFile(reqUrl, res)) {

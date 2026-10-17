@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { cloakText } from "../lib/cloaker";
+import logoUrl from "@/assets/logo.webp";
 
 function NotFoundComponent() {
   return (
@@ -90,9 +91,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/logo.webp", type: "image/webp" },
-      { rel: "shortcut icon", href: "/favicon.ico" },
-      { rel: "apple-touch-icon", href: "/logo.webp" },
+      { rel: "icon", href: logoUrl, type: "image/webp" },
+      { rel: "shortcut icon", href: logoUrl, type: "image/webp" },
+      { rel: "apple-touch-icon", href: logoUrl },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@400;600;700;900&family=Oswald:wght@600;700&family=DM+Sans:wght@400;500;700&display=swap" },
     ],
   }),
