@@ -14,7 +14,8 @@ import { cloakText } from "@/lib/cloaker";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { name: "description", content: "Conexão segura verificada." },
+      { title: "Bolada Pix — Prêmios incríveis que podem mudar seu estilo de vida" },
+      { name: "description", content: "Participe da Bolada Pix e concorra a prêmios incríveis com segurança e agilidade." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],

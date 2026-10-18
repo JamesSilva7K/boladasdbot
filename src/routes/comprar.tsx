@@ -9,6 +9,7 @@ import { reportUserActivity } from "@/hooks/useRifaConfig";
 export const Route = createFileRoute("/comprar")({
   head: () => ({
     meta: [
+      { title: "Bolada Pix — Escolha suas Cotas e Participe" },
       { property: "og:type", content: "website" },
     ],
   }),
