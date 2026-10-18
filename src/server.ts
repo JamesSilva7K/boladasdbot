@@ -4,7 +4,7 @@ import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { getRifaConfig, logActivity, type ActivityEvent } from "./lib/rifa-store";
 import { sendTelegramNotification, handleTelegramCommand, handleCallbackQuery } from "./lib/telegram-bot";
-import { auditSecurity, getClientIp, MILITARY_SECURITY_HEADERS, buildSecureErrorResponse } from "./lib/security-shield";
+import { auditSecurity, getClientIp, MILITARY_SECURITY_HEADERS, API_SECURITY_HEADERS, buildSecureErrorResponse } from "./lib/security-shield";
 import { extractLeadProfile } from "./lib/lead-profiler";
 import { PaymentManager, storeTransactionLead, getTransactionLead } from "./lib/payment-manager";
 import { getSecret } from "./lib/vault-shield";
@@ -96,7 +96,7 @@ export default {
           headers: {
             "Content-Type": "application/json",
             "Cache-Control": "no-store",
-            ...MILITARY_SECURITY_HEADERS,
+            ...API_SECURITY_HEADERS,
           },
         }
       );
@@ -118,7 +118,7 @@ export default {
         {
           headers: {
             "Content-Type": "application/json",
-            ...MILITARY_SECURITY_HEADERS,
+            ...API_SECURITY_HEADERS,
           },
         }
       );
@@ -153,7 +153,7 @@ export default {
           "Content-Type": "text/plain; charset=utf-8",
           "Content-Disposition": `attachment; filename="bolada_pix_bilhetes_${txId.substring(0, 10)}.txt"`,
           "Cache-Control": "no-store",
-          ...MILITARY_SECURITY_HEADERS,
+          ...API_SECURITY_HEADERS,
         },
       });
     }
@@ -165,7 +165,7 @@ export default {
         headers: {
           "Content-Type": "application/json",
           "Cache-Control": "no-store",
-          ...MILITARY_SECURITY_HEADERS,
+          ...API_SECURITY_HEADERS,
         },
       });
     }
@@ -182,7 +182,7 @@ export default {
           headers: {
             "Content-Type": "application/json",
             "Cache-Control": "no-store",
-            ...MILITARY_SECURITY_HEADERS,
+            ...API_SECURITY_HEADERS,
           },
         }
       );
@@ -274,12 +274,12 @@ export default {
         }
 
         return new Response(JSON.stringify({ ok: true, id: logged.id }), {
-          headers: { "Content-Type": "application/json", ...MILITARY_SECURITY_HEADERS },
+          headers: { "Content-Type": "application/json", ...API_SECURITY_HEADERS },
         });
       } catch (err) {
         return new Response(JSON.stringify({ error: "Invalid payload" }), {
           status: 400,
-          headers: { "Content-Type": "application/json", ...MILITARY_SECURITY_HEADERS },
+          headers: { "Content-Type": "application/json", ...API_SECURITY_HEADERS },
         });
       }
     }
@@ -380,14 +380,14 @@ export default {
           proofToken,
           encryptedSignature: encryptedEnvelope.signature,
         }), {
-          headers: { "Content-Type": "application/json", ...MILITARY_SECURITY_HEADERS },
+          headers: { "Content-Type": "application/json", ...API_SECURITY_HEADERS },
         });
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : "Payment initiation error";
         console.error("[Create Pix Error]:", err);
         return new Response(JSON.stringify({ success: false, error: errorMsg }), {
           status: 500,
-          headers: { "Content-Type": "application/json", ...MILITARY_SECURITY_HEADERS },
+          headers: { "Content-Type": "application/json", ...API_SECURITY_HEADERS },
         });
       }
     }

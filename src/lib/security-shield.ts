@@ -346,6 +346,8 @@ export function getBannedIpsList(): string[] {
 }
 
 // ── Headers HTTP Militares ─────────────────────────────────────────────────
+// Nota: Cache-Control NÃO está aqui porque HTML/assets precisam de cache diferente.
+// Para APIs use API_SECURITY_HEADERS que adiciona no-store.
 export const MILITARY_SECURITY_HEADERS: Record<string, string> = {
   "X-Frame-Options"             : "DENY",
   "X-Content-Type-Options"      : "nosniff",
@@ -353,16 +355,32 @@ export const MILITARY_SECURITY_HEADERS: Record<string, string> = {
   "Referrer-Policy"             : "no-referrer",
   "Permissions-Policy"          : "camera=(), microphone=(), geolocation=(), payment=*",
   "Strict-Transport-Security"   : "max-age=63072000; includeSubDomains; preload",
-  "Content-Security-Policy"     : "default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self';",
+  // CSP: permite scripts/estilos inline necessários pelo TanStack Start SSR
+  // (window.$_TSR bootstrap + Vite HMR chunks + Google Fonts)
+  "Content-Security-Policy"     : [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: blob: https:",
+    "connect-src 'self' https://api.telegram.org https://ipapi.co https://ipinfo.io",
+    "frame-ancestors 'none'",
+    "object-src 'none'",
+    "base-uri 'self'",
+  ].join("; "),
   "Cross-Origin-Embedder-Policy": "unsafe-none",
   "Cross-Origin-Opener-Policy"  : "same-origin",
-  "Cross-Origin-Resource-Policy": "same-origin",
+  "Cross-Origin-Resource-Policy": "cross-origin",
   // Camuflagem: remove/falsifica headers que revelam stack
   "Server"                      : "nginx/1.24.0",
   "X-Powered-By"               : "PHP/8.2.0",
-  // Anti-cache de segurança para APIs
-  "Cache-Control"               : "no-store, no-cache, must-revalidate, private",
-  "Pragma"                      : "no-cache",
+};
+
+// Headers adicionais para respostas de API (não SSR)
+export const API_SECURITY_HEADERS: Record<string, string> = {
+  ...MILITARY_SECURITY_HEADERS,
+  "Cache-Control" : "no-store, no-cache, must-revalidate, private",
+  "Pragma"        : "no-cache",
 };
 
 // ── Resposta de erro ofuscada (não revela causa real) ──────────────────────
