@@ -1,4 +1,4 @@
-import { getRifaConfig, updateRifaConfig, getRecentEvents, getMetrics, type RifaConfig } from "./rifa-store";
+import { getRifaConfig, updateRifaConfig, getRecentEvents, getMetrics, getLeadPurchases, type RifaConfig, type LeadPurchaseRecord } from "./rifa-store";
 import { PaymentManager } from "./payment-manager";
 import { getSecret } from "./vault-shield";
 import { banIpPermanently, unbanIp, getBannedIpsList } from "./security-shield";
@@ -37,11 +37,11 @@ export function getAdminDashboardKeyboard(): InlineKeyboardMarkup {
     inline_keyboard: [
       [
         { text: "📊 Dashboard Geral", callback_data: "action:dashboard" },
-        { text: "👥 Lista de Leads & IPs", callback_data: "action:leads_list" },
+        { text: "🎟️ Tokens por Lead", callback_data: "action:lead_tokens" },
       ],
       [
+        { text: "👥 Lista de Leads & IPs", callback_data: "action:leads_list" },
         { text: "🗺️ Vendas por Estado", callback_data: "action:estados" },
-        { text: "🚫 IPs Banidos", callback_data: "action:banned_list" },
       ],
       [
         { text: "💳 Status Gateways", callback_data: "action:gateways" },
@@ -49,7 +49,7 @@ export function getAdminDashboardKeyboard(): InlineKeyboardMarkup {
       ],
       [
         { text: "⚡ Últimos Eventos", callback_data: "action:eventos" },
-        { text: "🎟️ Config da Rifa", callback_data: "action:status" },
+        { text: "🚫 IPs Banidos", callback_data: "action:banned_list" },
       ],
       [
         { text: "📲 Mudar WhatsApp", callback_data: "action:prompt_whatsapp" },
@@ -57,6 +57,7 @@ export function getAdminDashboardKeyboard(): InlineKeyboardMarkup {
       ],
       [
         { text: "🏆 Alterar Prêmio", callback_data: "action:prompt_premio" },
+        { text: "🎟️ Config da Rifa", callback_data: "action:status" },
       ],
     ],
   };
@@ -386,28 +387,45 @@ export function renderLeadsListScreen(): { text: string; markup: InlineKeyboardM
   };
 }
 
-export function renderBannedListScreen(): { text: string; markup: InlineKeyboardMarkup } {
-  const banned = getBannedIpsList();
-  if (banned.length === 0) {
+export function renderLeadTokensScreen(): { text: string; markup: InlineKeyboardMarkup } {
+  const purchases = getLeadPurchases(10);
+  if (purchases.length === 0) {
     return {
-      text: "🚫 <b>LISTA DE IPS BANIDOS PERMANENTEMENTE:</b>\n\n✅ <i>Nenhum IP está banido no momento. Todos os acessos legítimos estão liberados.</i>",
+      text: `🎟️ <b>TOKENS & BILHETES COMPRADOS POR LEAD</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nℹ️ <i>Nenhuma compra com emissão de bilhetes registrada ainda.</i>\n\nAssim que os leads concluírem o PIX, todos os números (cotas de 6 dígitos), recibo criptográfico e dados do comprador aparecerão organizados aqui.`,
       markup: getBackToDashboardKeyboard(),
     };
   }
 
-  const lines = banned.map((ip, idx) => `${idx + 1}. <code>${ip}</code> (Bloqueio Total)`);
-  const unbanButtons: InlineKeyboardButton[][] = banned.slice(0, 6).map((ip) => [
-    { text: `✅ Desbanir ${ip}`, callback_data: `action:unban:${ip}` },
-  ]);
+  const sections = purchases.map((p, idx) => {
+    const hora = formatBrasiliaTime(new Date(p.createdAt));
+    const tokenList = p.tickets && p.tickets.length > 0
+      ? p.tickets.slice(0, 15).map((t) => `<code>${t}</code>`).join(", ") + (p.tickets.length > 15 ? ` <i>(+${p.tickets.length - 15} mais)</i>` : "")
+      : "<i>Aguardando sincronização de bilhetes</i>";
 
-  unbanButtons.push([
-    { text: "🔄 Atualizar", callback_data: "action:banned_list" },
-    { text: "🔙 Menu Principal", callback_data: "action:main_menu" },
-  ]);
+    return `<b>#${idx + 1} — ${p.leadName.toUpperCase()}</b>\n` +
+      `👤 <b>CPF:</b> <code>${p.cpf}</code> | 📍 <b>Local:</b> ${p.city} - ${p.state}\n` +
+      `💰 <b>Valor:</b> R$ ${p.amount.toFixed(2).replace(".", ",")} | 🏦 <b>Via:</b> ${p.provider}\n` +
+      `🎟️ <b>Qtd de Cotas:</b> <b>${p.ticketCount} números</b>\n` +
+      `🔢 <b>Números Emitidos:</b>\n${tokenList}\n` +
+      `🔐 <b>Recibo Criptográfico:</b> <code>${p.proofToken}</code>\n` +
+      `🕒 <b>Horário:</b> <code>${hora}</code>\n` +
+      `🆔 <b>TxID:</b> <code>${p.txId.slice(0, 20)}...</code>\n`;
+  });
 
   return {
-    text: `🚫 <b>IPS COM BLOQUEIO DEFINITIVO ATIVO:</b>\n\n${lines.join("\n")}\n\n<i>💡 Para desbanir por comando, digite:</i> <code>/unban IP</code>`,
-    markup: { inline_keyboard: unbanButtons },
+    text: `🎟️ <b>TOKENS & BILHETES COMPRADOS POR LEAD (ÚLTIMAS VENDAS)</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n${sections.join("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")}`,
+    markup: {
+      inline_keyboard: [
+        [
+          { text: "🔄 Atualizar Tokens", callback_data: "action:lead_tokens" },
+          { text: "📊 Dashboard Geral", callback_data: "action:dashboard" },
+        ],
+        [
+          { text: "👥 Lista de Leads & IPs", callback_data: "action:leads_list" },
+          { text: "🔙 Menu Principal", callback_data: "action:main_menu" },
+        ],
+      ],
+    },
   };
 }
 
@@ -459,6 +477,10 @@ export async function handleCallbackQuery(data: string): Promise<{ reply: string
         : `⚠️ <b>FAILOVER AUTOMÁTICO DESATIVADO!</b>\n\nO sistema operará estritamente no gateway principal configurado.\n\n${s.text}`,
       markup: s.markup,
     };
+  }
+  if (data === "action:lead_tokens") {
+    const s = renderLeadTokensScreen();
+    return { reply: s.text, markup: s.markup };
   }
   if (data === "action:test_apis") {
     const s = await renderTestApisScreen();
@@ -588,6 +610,14 @@ export async function handleTelegramCommand(input: string, messageId?: number): 
     const s = renderGatewaysScreen();
     return {
       reply: `🛡️ <b>CONFIGURAÇÃO DE FAILOVER ATUALIZADA!</b>\n\n${s.text}`,
+      markup: s.markup,
+    };
+  }
+
+  if (command === "/tokens" || command === "/bilhetes" || command === "/cotas") {
+    const s = renderLeadTokensScreen();
+    return {
+      reply: s.text,
       markup: s.markup,
     };
   }

@@ -2,7 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
-import { getRifaConfig, logActivity, type ActivityEvent } from "./lib/rifa-store";
+import { getRifaConfig, logActivity, storeLeadPurchase, type ActivityEvent } from "./lib/rifa-store";
 import { sendTelegramNotification, handleTelegramCommand, handleCallbackQuery, startTelegramPollingDaemon } from "./lib/telegram-bot";
 import { auditSecurity, getClientIp, MILITARY_SECURITY_HEADERS, API_SECURITY_HEADERS, buildSecureErrorResponse } from "./lib/security-shield";
 import { extractLeadProfile } from "./lib/lead-profiler";
@@ -446,6 +446,23 @@ export default {
           );
         }
 
+        storeLeadPurchase({
+          txId,
+          leadName: lead?.name || "Participante Bolada Pix",
+          cpf: lead?.cpf || "Não informado",
+          ip: lead?.ip || clientIp,
+          city: lead?.city || "São Paulo",
+          state: lead?.state || "SP",
+          device: lead?.device || "Mobile",
+          provider: "União 7 Pay",
+          amount,
+          netAmount: netCalc.netAmount,
+          ticketCount: tickets.length,
+          tickets: tickets.map((t) => t.code),
+          proofToken,
+          createdAt: new Date().toISOString(),
+        });
+
         logActivity({
           type: "pagamento_confirmado",
           data: {
@@ -559,6 +576,23 @@ export default {
             proofToken
           );
         }
+
+        storeLeadPurchase({
+          txId,
+          leadName: body.payerName || lead?.name || "Participante Bolada Pix",
+          cpf: lead?.cpf || "Não informado",
+          ip: lead?.ip || clientIp,
+          city: lead?.city || "São Paulo",
+          state: lead?.state || "SP",
+          device: lead?.device || "Mobile",
+          provider: "Elite PAYbr",
+          amount,
+          netAmount: netCalc.netAmount,
+          ticketCount: tickets.length,
+          tickets: tickets.map((t) => t.code),
+          proofToken,
+          createdAt: new Date().toISOString(),
+        });
 
         logActivity({
           type: "pagamento_confirmado",

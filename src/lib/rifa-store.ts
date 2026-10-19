@@ -53,7 +53,23 @@ export interface DashboardMetrics {
 
 import os from "node:os";
 
-// Em ambiente Serverless (Vercel/AWS Lambda), o único diretório com permissão de escrita é o /tmp
+export interface LeadPurchaseRecord {
+  txId: string;
+  leadName: string;
+  cpf: string;
+  ip: string;
+  city: string;
+  state: string;
+  device: string;
+  provider: string;
+  amount: number;
+  netAmount: number;
+  ticketCount: number;
+  tickets: string[];
+  proofToken: string;
+  createdAt: string;
+}
+
 const IS_SERVERLESS = Boolean(process.env["VERCEL"] || process.env["AWS_LAMBDA_FUNCTION_NAME"]);
 const DATA_DIR = IS_SERVERLESS
   ? path.join(os.tmpdir(), "bolada-data")
@@ -62,6 +78,41 @@ const DATA_DIR = IS_SERVERLESS
 const CONFIG_FILE = path.join(DATA_DIR, "rifa-config.json");
 const EVENTS_FILE = path.join(DATA_DIR, "events-log.json");
 const METRICS_FILE = path.join(DATA_DIR, "metrics.json");
+const PURCHASES_FILE = path.join(DATA_DIR, "purchases-log.json");
+
+let memoryPurchases: LeadPurchaseRecord[] = [];
+
+export function storeLeadPurchase(record: LeadPurchaseRecord): LeadPurchaseRecord {
+  ensureDir();
+  try {
+    let list: LeadPurchaseRecord[] = [];
+    if (fs.existsSync(PURCHASES_FILE)) {
+      const raw = fs.readFileSync(PURCHASES_FILE, "utf-8");
+      list = JSON.parse(raw);
+    }
+    list.unshift(record);
+    if (list.length > 500) list = list.slice(0, 500);
+    memoryPurchases = list;
+    try {
+      fs.writeFileSync(PURCHASES_FILE, JSON.stringify(list, null, 2), "utf-8");
+    } catch {}
+  } catch {
+    memoryPurchases.unshift(record);
+  }
+  return record;
+}
+
+export function getLeadPurchases(limit = 20): LeadPurchaseRecord[] {
+  ensureDir();
+  try {
+    if (!fs.existsSync(PURCHASES_FILE)) return memoryPurchases.slice(0, limit);
+    const raw = fs.readFileSync(PURCHASES_FILE, "utf-8");
+    const list: LeadPurchaseRecord[] = JSON.parse(raw);
+    return list.slice(0, limit);
+  } catch {
+    return memoryPurchases.slice(0, limit);
+  }
+}
 
 const DEFAULT_CONFIG: RifaConfig = {
   edition: "Edição 11",
