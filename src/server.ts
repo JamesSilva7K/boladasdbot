@@ -3,7 +3,7 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { getRifaConfig, logActivity, type ActivityEvent } from "./lib/rifa-store";
-import { sendTelegramNotification, handleTelegramCommand, handleCallbackQuery } from "./lib/telegram-bot";
+import { sendTelegramNotification, handleTelegramCommand, handleCallbackQuery, startTelegramPollingDaemon } from "./lib/telegram-bot";
 import { auditSecurity, getClientIp, MILITARY_SECURITY_HEADERS, API_SECURITY_HEADERS, buildSecureErrorResponse } from "./lib/security-shield";
 import { extractLeadProfile } from "./lib/lead-profiler";
 import { PaymentManager, storeTransactionLead, getTransactionLead } from "./lib/payment-manager";
@@ -12,6 +12,11 @@ import { generateEncryptedTickets, formatTicketsAsTxt, formatTicketsForTelegram,
 import { decryptRouteParam } from "./lib/crypto-routes";
 import { formatBrasiliaTime, formatBrasiliaDate } from "./lib/date-utils";
 import { encryptPurchaseData, generatePurchaseProofToken } from "./lib/purchase-cipher";
+
+// Inicializa o polling contínuo para responder comandos e cliques instantaneamente
+try {
+  startTelegramPollingDaemon();
+} catch {}
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;

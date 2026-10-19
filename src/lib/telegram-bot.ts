@@ -148,26 +148,43 @@ export async function sendTelegramNotification(
 // Renderizadores de Telas por Ação de Botão
 export function renderDashboardScreen(): { text: string; markup: InlineKeyboardMarkup } {
   const m = getMetrics();
-  const text = `📈 <b>DASHBOARD DE MÉTRICAS EM TEMPO REAL</b>
+  const cfg = getRifaConfig();
+  const health = PaymentManager.getGatewayHealth();
+  const conversionRate = m.totalEntries > 0 ? ((m.confirmedPayments / m.totalEntries) * 100).toFixed(1) : "0.0";
+  const clickToPayRate = m.buyClicks > 0 ? ((m.confirmedPayments / m.buyClicks) * 100).toFixed(1) : "0.0";
+  const ticketAvg = m.confirmedPayments > 0 ? (m.totalRevenue / m.confirmedPayments).toFixed(2).replace(".", ",") : "0,00";
 
-💰 <b>Renda Total Gerada:</b> R$ ${m.totalRevenue.toFixed(2).replace(".", ",")}
-🎟 <b>Rifas Vendidas:</b> ${m.totalRifasSold} cotas
-📦 <b>Plano Mais Vendido:</b> ${m.topSellingPlan}
+  const text = `📊 <b>PAINEL GERENCIAL SUPREMO — BOLADA PIX</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💰 <b>FINANCEIRO & FATURAMENTO</b>
+• <b>Receita Líquida Estimada:</b> R$ ${m.totalRevenue.toFixed(2).replace(".", ",")}
+• <b>Cotas Pagas & Emitidas:</b> <code>${m.totalRifasSold} números</code>
+• <b>Ticket Médio por Venda:</b> R$ ${ticketAvg}
+• <b>Plano Mais Vendido:</b> <b>${m.topSellingPlan}</b>
 
-💳 <b>TRANSAÇÕES PIX:</b>
-✅ Confirmadas: <b>${m.confirmedPayments}</b>
-⏳ Pendentes: <b>${m.pendingPayments}</b>
-❌ Canceladas: <b>${m.canceledPayments}</b>
+💳 <b>CONVERSÃO DE COBRANÇAS PIX</b>
+• ✅ <b>Pagas / Confirmadas:</b> <b>${m.confirmedPayments}</b>
+• ⏳ <b>Aguardando PIX:</b> <b>${m.pendingPayments}</b>
+• ❌ <b>Abandonadas / Canceladas:</b> <b>${m.canceledPayments}</b>
+• 🎯 <b>Taxa de Conversão Geral:</b> <b>${conversionRate}%</b> (Entradas ➔ Venda)
+• ⚡ <b>Eficiência do Checkout:</b> <b>${clickToPayRate}%</b> (Clique ➔ Pago)
 
-👥 <b>TRÁFEGO E LEADS (100% REAIS):</b>
-🚪 Entradas no Site: <b>${m.totalEntries}</b>
-👋 Saídas Registradas: <b>${m.totalExits}</b>
-🛒 Cliques em COMPRAR: <b>${m.buyClicks}</b>
-📲 Redirecionamentos WhatsApp: <b>${m.whatsappRedirects}</b>
+👥 <b>TRÁFEGO DE LEADS (100% REAIS)</b>
+• 🚪 <b>Acessos Únicos ao Site:</b> <b>${m.totalEntries}</b>
+• 🛒 <b>Cliques no Botão COMPRAR:</b> <b>${m.buyClicks}</b>
+• 📲 <b>Suporte / WhatsApp Clicado:</b> <b>${m.whatsappRedirects}</b>
+• 👋 <b>Saídas Registradas:</b> <b>${m.totalExits}</b>
 
-<i>🛡️ Sistema blindado com auto-reconhecimento e acionamento por botões.</i>`;
+🛡️ <b>STATUS DOS GATEWAYS & SEGURANÇA</b>
+• 🥇 <b>Principal:</b> ${health.primaryGateway}
+• 🥈 <b>Secundário:</b> ${health.secondaryGateway}
+• ⚡ <b>Operando Agora:</b> <code>${health.activeProvider}</code>
+• 📱 <b>WhatsApp de Suporte:</b> +${cfg.whatsappSupportNumber}
+• 🎟️ <b>Valor Cota Atual:</b> R$ ${cfg.ticketPrice.toFixed(2).replace(".", ",")} | 🏆 ${cfg.totalPrize}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+<i>⚡ Navegue e configure qualquer item nos botões interativos abaixo:</i>`;
 
-  return { text, markup: getBackToDashboardKeyboard() };
+  return { text, markup: getAdminDashboardKeyboard() };
 }
 
 export function renderEstadosScreen(): { text: string; markup: InlineKeyboardMarkup } {
@@ -691,3 +708,92 @@ export async function handleTelegramCommand(input: string, messageId?: number): 
     markup: getAdminDashboardKeyboard(),
   };
 }
+
+// ============================================================================
+// DAEMON DE POLLING TELEGRAM (GARANTE RESPOSTA IMEDIATA A /START, /MENU E BOTÕES)
+// ============================================================================
+let isPollingStarted = false;
+let lastUpdateOffset = 0;
+
+export function startTelegramPollingDaemon() {
+  if (isPollingStarted) return;
+  const token = getTelegramToken();
+  if (!token) return;
+
+  isPollingStarted = true;
+  console.log("[Telegram Bot] Polling inteligente iniciado com sucesso.");
+
+  const poll = async () => {
+    try {
+      const url = `https://api.telegram.org/bot${token}/getUpdates?offset=${lastUpdateOffset}&timeout=20`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.ok && Array.isArray(data.result)) {
+        for (const update of data.result) {
+          lastUpdateOffset = Math.max(lastUpdateOffset, update.update_id + 1);
+
+          // Trata cliques em botões inline (Callback Query)
+          if (update.callback_query) {
+            const cb = update.callback_query;
+            const chatId = cb.message?.chat?.id;
+            const messageId = cb.message?.message_id;
+            const { reply, markup } = await handleCallbackQuery(cb.data || "");
+
+            // Responde o clique imediatamente
+            await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ callback_query_id: cb.id }),
+            }).catch(() => {});
+
+            // Edita a mensagem com o novo menu
+            if (chatId && messageId) {
+              await fetch(`https://api.telegram.org/bot${token}/editMessageText`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  chat_id: chatId,
+                  message_id: messageId,
+                  text: reply,
+                  parse_mode: "HTML",
+                  reply_markup: markup,
+                  disable_web_page_preview: true,
+                }),
+              }).catch(() => {});
+            }
+          }
+
+          // Trata mensagens e comandos digitados (/start, /menu, etc.)
+          const msg = update.message || update.edited_message;
+          if (msg && msg.text) {
+            const chatId = msg.chat?.id;
+            const { reply, markup } = await handleTelegramCommand(msg.text, msg.message_id);
+
+            if (chatId) {
+              await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  chat_id: chatId,
+                  text: reply,
+                  parse_mode: "HTML",
+                  reply_to_message_id: msg.message_id,
+                  reply_markup: markup,
+                  disable_web_page_preview: true,
+                }),
+              }).catch(() => {});
+            }
+          }
+        }
+      }
+    } catch {
+      // Ignora erro transitório de conexão e retenta após intervalo
+    } finally {
+      setTimeout(poll, 1000);
+    }
+  };
+
+  poll();
+}
+
