@@ -45,14 +45,17 @@ export function getAdminDashboardKeyboard(): InlineKeyboardMarkup {
       ],
       [
         { text: "💳 Status Gateways", callback_data: "action:gateways" },
+        { text: "🧪 Teste Camuflado APIs", callback_data: "action:test_apis" },
+      ],
+      [
         { text: "⚡ Últimos Eventos", callback_data: "action:eventos" },
-      ],
-      [
         { text: "🎟️ Config da Rifa", callback_data: "action:status" },
-        { text: "📲 Mudar WhatsApp", callback_data: "action:prompt_whatsapp" },
       ],
       [
+        { text: "📲 Mudar WhatsApp", callback_data: "action:prompt_whatsapp" },
         { text: "💰 Alterar Valor Cota", callback_data: "action:prompt_valor" },
+      ],
+      [
         { text: "🏆 Alterar Prêmio", callback_data: "action:prompt_premio" },
       ],
     ],
@@ -189,15 +192,84 @@ export function renderEstadosScreen(): { text: string; markup: InlineKeyboardMar
 
 export function renderGatewaysScreen(): { text: string; markup: InlineKeyboardMarkup } {
   const health = PaymentManager.getGatewayHealth();
-  const text = `💳 <b>SISTEMA DE GATEWAYS & FAILOVER AUTOMÁTICO</b>
+  const failoverEmoji = health.autoFailoverEnabled ? "🟢 ATIVADO" : "🔴 DESATIVADO";
 
-🥇 <b>Gateway Principal:</b> União 7 Pay (${health.uniaoHealth})
-🥈 <b>Gateway Reserva:</b> Elite PAYbr (${health.eliteHealth})
+  const text = `💳 <b>SISTEMA DE GATEWAYS & FAILOVER INTELIGENTE</b>
+
+🥇 <b>Gateway Principal:</b> <b>${health.primaryGateway}</b> (${health.primaryGateway === "União 7 Pay" ? health.uniaoHealth : health.eliteHealth})
+🥈 <b>Gateway Secundário:</b> <b>${health.secondaryGateway}</b> (${health.secondaryGateway === "União 7 Pay" ? health.uniaoHealth : health.eliteHealth})
+🛡️ <b>Failover Automático:</b> <code>${failoverEmoji}</code>
 ⚡ <b>Gateway Operando Agora:</b> <code>${health.activeProvider}</code>
+${health.lastTested ? `🕒 <b>Último Teste Camuflado:</b> <code>${health.lastTested}</code>\n` : ""}
+<i>💡 Se o principal sofrer lentidão ou oscilação, o sistema chaveia para o secundário de forma 100% transparente, sem perder vendas nem dar erro ao lead.</i>`;
 
-<i>🔄 O failover monitora falhas e assume a reserva automaticamente sem travar compras.</i>`;
+  const markup: InlineKeyboardMarkup = {
+    inline_keyboard: [
+      [
+        { text: health.primaryGateway === "União 7 Pay" ? "✅ União 7 (Principal)" : "🥇 Tornar União 7 Principal", callback_data: "action:set_primary_uniao" },
+        { text: health.primaryGateway === "Elite PAYbr" ? "✅ Elite PAY (Principal)" : "🥇 Tornar Elite PAY Principal", callback_data: "action:set_primary_elite" },
+      ],
+      [
+        { text: "🔄 Inverter Gateways", callback_data: "action:swap_gateways" },
+        { text: health.autoFailoverEnabled ? "🛡️ Desativar Failover" : "🛡️ Ativar Failover", callback_data: "action:toggle_failover" },
+      ],
+      [
+        { text: "🧪 Rodar Teste Camuflado Agora", callback_data: "action:test_apis" },
+        { text: "🔄 Atualizar Status", callback_data: "action:gateways" },
+      ],
+      [
+        { text: "📊 Dashboard Geral", callback_data: "action:dashboard" },
+        { text: "🔙 Menu Principal", callback_data: "action:main_menu" },
+      ],
+    ],
+  };
 
-  return { text, markup: getBackToDashboardKeyboard() };
+  return { text, markup };
+}
+
+export async function renderTestApisScreen(): Promise<{ text: string; markup: InlineKeyboardMarkup }> {
+  const report = await PaymentManager.runStealthApiHealthCheck("telegram_admin");
+
+  const uniaoIcon = report.uniao.status === "ONLINE" ? "🟢" : report.uniao.status === "LENTO" ? "🟡" : "🔴";
+  const eliteIcon = report.elite.status === "ONLINE" ? "🟢" : report.elite.status === "LENTO" ? "🟡" : "🔴";
+
+  const text = `🧪 <b>TESTE CAMUFLADO DE APIS DE PAGAMENTO</b>
+⏰ <b>Horário do Teste:</b> <code>${report.timestamp}</code> (Brasília)
+🛡️ <b>Modo de Execução:</b> <i>Sondagem Sintética Camuflada (Sem poluir faturamento)</i>
+
+🥇 <b>${report.primaryGateway} (Principal):</b>
+• Status: ${report.primaryGateway === "União 7 Pay" ? uniaoIcon : eliteIcon} <b>${report.primaryGateway === "União 7 Pay" ? report.uniao.status : report.elite.status}</b> (⚡ <code>${report.primaryGateway === "União 7 Pay" ? report.uniao.latencyMs : report.elite.latencyMs}ms</code>)
+• Diagnóstico: <i>${report.primaryGateway === "União 7 Pay" ? report.uniao.message : report.elite.message}</i>
+
+🥈 <b>${report.secondaryGateway} (Secundário / Reserva):</b>
+• Status: ${report.secondaryGateway === "União 7 Pay" ? uniaoIcon : eliteIcon} <b>${report.secondaryGateway === "União 7 Pay" ? report.uniao.status : report.elite.status}</b> (⚡ <code>${report.secondaryGateway === "União 7 Pay" ? report.uniao.latencyMs : report.elite.latencyMs}ms</code>)
+• Diagnóstico: <i>${report.secondaryGateway === "União 7 Pay" ? report.uniao.message : report.elite.message}</i>
+
+🛡️ <b>Failover Automático:</b> <code>${report.autoFailoverEnabled ? "ATIVADO (Blindagem Máxima)" : "DESATIVADO"}</code>
+⚡ <b>Gateway Operando Agora:</b> <code>${report.activeProvider}</code>
+
+🎯 <b>Status de Blindagem dos Leads:</b>
+${report.allSystemsOperational ? "✅ <b>100% BLINDADO!</b> Os leads compram com zero atrito e PIX instantâneo." : "⚠️ <b>BLINDAGEM ACIONADA:</b> Failover automático chaveou para garantir a conversão."}
+
+<i>${report.switchActionTaken}</i>`;
+
+  const markup: InlineKeyboardMarkup = {
+    inline_keyboard: [
+      [
+        { text: "⚡ Rodar Novo Teste", callback_data: "action:test_apis" },
+        { text: "🔄 Inverter Gateways", callback_data: "action:swap_gateways" },
+      ],
+      [
+        { text: "💳 Configurar Gateways", callback_data: "action:gateways" },
+        { text: "📊 Dashboard Geral", callback_data: "action:dashboard" },
+      ],
+      [
+        { text: "🔙 Menu Principal", callback_data: "action:main_menu" },
+      ],
+    ],
+  };
+
+  return { text, markup };
 }
 
 export function renderRifaStatusScreen(): { text: string; markup: InlineKeyboardMarkup } {
@@ -323,7 +395,7 @@ export function renderBannedListScreen(): { text: string; markup: InlineKeyboard
 }
 
 // Gerenciador de Ações via Callback Query (Cliques em Botões)
-export function handleCallbackQuery(data: string): { reply: string; markup: InlineKeyboardMarkup } {
+export async function handleCallbackQuery(data: string): Promise<{ reply: string; markup: InlineKeyboardMarkup }> {
 
   if (data === "action:dashboard") {
     const s = renderDashboardScreen();
@@ -335,6 +407,44 @@ export function handleCallbackQuery(data: string): { reply: string; markup: Inli
   }
   if (data === "action:gateways") {
     const s = renderGatewaysScreen();
+    return { reply: s.text, markup: s.markup };
+  }
+  if (data === "action:set_primary_uniao") {
+    PaymentManager.setPrimaryGateway("União 7 Pay");
+    const s = renderGatewaysScreen();
+    return {
+      reply: `✅ <b>UNIÃO 7 PAY DEFINIDO COMO GATEWAY PRINCIPAL!</b>\n\n🥇 <b>Principal:</b> União 7 Pay\n🥈 <b>Secundário:</b> Elite PAYbr\n\n${s.text}`,
+      markup: s.markup,
+    };
+  }
+  if (data === "action:set_primary_elite") {
+    PaymentManager.setPrimaryGateway("Elite PAYbr");
+    const s = renderGatewaysScreen();
+    return {
+      reply: `✅ <b>ELITE PAYBR DEFINIDO COMO GATEWAY PRINCIPAL!</b>\n\n🥇 <b>Principal:</b> Elite PAYbr\n🥈 <b>Secundário:</b> União 7 Pay\n\n${s.text}`,
+      markup: s.markup,
+    };
+  }
+  if (data === "action:swap_gateways") {
+    const swapped = PaymentManager.swapGateways();
+    const s = renderGatewaysScreen();
+    return {
+      reply: `🔄 <b>GATEWAYS INVERTIDOS COM SUCESSO!</b>\n\n🥇 <b>Novo Principal:</b> ${swapped.primary}\n🥈 <b>Novo Secundário:</b> ${swapped.secondary}\n\n${s.text}`,
+      markup: s.markup,
+    };
+  }
+  if (data === "action:toggle_failover") {
+    const isEnabled = PaymentManager.toggleAutoFailover();
+    const s = renderGatewaysScreen();
+    return {
+      reply: isEnabled
+        ? `🛡️ <b>FAILOVER AUTOMÁTICO ATIVADO!</b>\n\nSe o gateway principal oscilar, o sistema assumirá o secundário em milissegundos sem interromper compras.\n\n${s.text}`
+        : `⚠️ <b>FAILOVER AUTOMÁTICO DESATIVADO!</b>\n\nO sistema operará estritamente no gateway principal configurado.\n\n${s.text}`,
+      markup: s.markup,
+    };
+  }
+  if (data === "action:test_apis") {
+    const s = await renderTestApisScreen();
     return { reply: s.text, markup: s.markup };
   }
   if (data === "action:status") {
@@ -396,7 +506,7 @@ export function handleCallbackQuery(data: string): { reply: string; markup: Inli
 }
 
 // Parser inteligente e tolerante para quando o admin digita ou usa comandos
-export function handleTelegramCommand(input: string, messageId?: number): { reply: string; markup?: InlineKeyboardMarkup; config?: RifaConfig } {
+export async function handleTelegramCommand(input: string, messageId?: number): Promise<{ reply: string; markup?: InlineKeyboardMarkup; config?: RifaConfig }> {
   const cleanInput = input.trim();
   const parts = cleanInput.split(/\s+/);
   const command = (parts[0] || "").toLowerCase();
@@ -405,6 +515,71 @@ export function handleTelegramCommand(input: string, messageId?: number): { repl
     return {
       reply: `👑 <b>PAINEL DO ADMIN SUPREMO — BOLADA PIX</b>\n\nSelecione uma ação nos botões interativos abaixo:`,
       markup: getAdminDashboardKeyboard(),
+    };
+  }
+
+  if (command === "/gateways" || command === "/gateway") {
+    const s = renderGatewaysScreen();
+    return {
+      reply: s.text,
+      markup: s.markup,
+    };
+  }
+
+  if (command === "/setprimary") {
+    const choice = (parts[1] || "").toLowerCase();
+    if (choice.includes("uniao") || choice.includes("união") || choice === "1") {
+      PaymentManager.setPrimaryGateway("União 7 Pay");
+      const s = renderGatewaysScreen();
+      return {
+        reply: `✅ <b>UNIÃO 7 PAY DEFINIDO COMO GATEWAY PRINCIPAL!</b>\n\n${s.text}`,
+        markup: s.markup,
+      };
+    } else if (choice.includes("elite") || choice === "2") {
+      PaymentManager.setPrimaryGateway("Elite PAYbr");
+      const s = renderGatewaysScreen();
+      return {
+        reply: `✅ <b>ELITE PAYBR DEFINIDO COMO GATEWAY PRINCIPAL!</b>\n\n${s.text}`,
+        markup: s.markup,
+      };
+    } else {
+      return {
+        reply: `❌ <b>Uso do comando:</b>\n• <code>/setprimary uniao</code> (Para União 7 Pay)\n• <code>/setprimary elite</code> (Para Elite PAYbr)\n• Ou use <code>/swapgateways</code> para inverter.`,
+        markup: getBackToDashboardKeyboard(),
+      };
+    }
+  }
+
+  if (command === "/swapgateways" || command === "/inverter") {
+    const swapped = PaymentManager.swapGateways();
+    const s = renderGatewaysScreen();
+    return {
+      reply: `🔄 <b>GATEWAYS INVERTIDOS!</b>\n🥇 <b>Novo Principal:</b> ${swapped.primary}\n🥈 <b>Novo Secundário:</b> ${swapped.secondary}\n\n${s.text}`,
+      markup: s.markup,
+    };
+  }
+
+  if (command === "/failover") {
+    const arg = (parts[1] || "").toLowerCase();
+    if (arg === "on" || arg === "ativar" || arg === "1") {
+      updateRifaConfig({ autoFailoverEnabled: true });
+    } else if (arg === "off" || arg === "desativar" || arg === "0") {
+      updateRifaConfig({ autoFailoverEnabled: false });
+    } else {
+      PaymentManager.toggleAutoFailover();
+    }
+    const s = renderGatewaysScreen();
+    return {
+      reply: `🛡️ <b>CONFIGURAÇÃO DE FAILOVER ATUALIZADA!</b>\n\n${s.text}`,
+      markup: s.markup,
+    };
+  }
+
+  if (command === "/testapis" || command === "/teste" || command === "/health" || command === "/provas") {
+    const s = await renderTestApisScreen();
+    return {
+      reply: s.text,
+      markup: s.markup,
     };
   }
 

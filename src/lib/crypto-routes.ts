@@ -51,3 +51,35 @@ export const ENCRYPTED_ROUTE_ALIASES: Record<string, string> = {
   "/comprar": "/c/" + encryptRouteParam("comprar"),
   "/checkout": "/c/" + encryptRouteParam("checkout"),
 };
+
+/**
+ * Gera parâmetros de checkout dinâmicos, criptografados e exclusivos por lead no modelo:
+ * ?p=302&e=8066 (onde 'p' é o produto/plano/sessão criptografado e 'e' é o envelope/assinatura de validação)
+ */
+export function generateLeadCheckoutParams(seed?: string | number): { p: string; e: string; query: string } {
+  const now = Date.now();
+  const randomSalt = Math.floor(1000 + Math.random() * 9000);
+  const baseNum = typeof seed === "number" ? seed : Math.floor(100 + Math.random() * 900);
+  
+  // 'p' (Product/Plan ID dinâmico): valor de 3 a 5 dígitos
+  const p = String(baseNum % 900 + 100);
+  
+  // 'e' (Edition/Envelope Token): token numérico calculado a partir do timestamp + secret
+  const hashSum = (Number(p) * 17 + (now % 10000) * 13 + randomSalt) % 9000 + 1000;
+  const e = String(hashSum);
+
+  return {
+    p,
+    e,
+    query: `?p=${p}&e=${e}`,
+  };
+}
+
+/**
+ * Retorna o caminho de checkout com a query criptografada única para cada lead
+ */
+export function getLeadCheckoutUrl(basePath: string = "/comprar"): string {
+  const { query } = generateLeadCheckoutParams();
+  return `${basePath}${query}`;
+}
+

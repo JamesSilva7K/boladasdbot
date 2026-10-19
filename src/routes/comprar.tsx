@@ -6,6 +6,8 @@ import { RaspadinhasSection } from "@/components/home/RaspadinhasSection";
 import { TrustAndClientSection } from "@/components/home/TrustAndClientSection";
 import { reportUserActivity } from "@/hooks/useRifaConfig";
 
+import { generateLeadCheckoutParams } from "@/lib/crypto-routes";
+
 export const Route = createFileRoute("/comprar")({
   head: () => ({
     meta: [
@@ -19,6 +21,18 @@ export const Route = createFileRoute("/comprar")({
 
 function Comprar() {
   useEffect(() => {
+    // Garante que cada lead tenha parâmetros criptografados únicos na URL no modelo: /?p=302&e=8066
+    if (typeof window !== "undefined") {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (!searchParams.get("p") || !searchParams.get("e")) {
+        const { p, e } = generateLeadCheckoutParams();
+        searchParams.set("p", p);
+        searchParams.set("e", e);
+        const newUrl = `${window.location.pathname}?${searchParams.toString()}`;
+        window.history.replaceState({ path: newUrl }, "", newUrl);
+      }
+    }
+
     reportUserActivity("entrada", { path: "/comprar" });
 
     let hasReportedExit = false;

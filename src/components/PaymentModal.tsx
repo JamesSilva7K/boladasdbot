@@ -26,7 +26,7 @@ interface PaymentModalProps {
 export function PaymentModal({
   children,
   onModalOpen,
-  selectedCotas: initialSelectedCotas = 30,
+  selectedCotas: initialSelectedCotas = 25,
 }: PaymentModalProps) {
   const config = useRifaConfig();
   const [open, setOpen] = useState(false);

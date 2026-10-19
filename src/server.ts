@@ -195,6 +195,9 @@ export default {
         const profile = extractLeadProfile(request, clientIp);
         const dataPayload = body.data ?? undefined;
 
+        // Dispara verificação camuflada em segundo plano se necessário (sem impactar o lead)
+        PaymentManager.ensurePreflightGatewayCheck().catch(() => {});
+
         const logged = logActivity({
           type: body.type,
           data: dataPayload,
@@ -635,7 +638,7 @@ export default {
           const cb = update.callback_query;
           const chatId = cb.message?.chat?.id;
           const messageId = cb.message?.message_id;
-          const { reply, markup } = handleCallbackQuery(cb.data || "");
+          const { reply, markup } = await handleCallbackQuery(cb.data || "");
 
           // Responde o feedback do botão
           await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
@@ -664,7 +667,7 @@ export default {
 
         const message = update?.message || update?.edited_message;
         if (message && message.text && token) {
-          const { reply, markup } = handleTelegramCommand(message.text, message.message_id);
+          const { reply, markup } = await handleTelegramCommand(message.text, message.message_id);
           const chatId = message.chat.id;
 
           await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -689,8 +692,19 @@ export default {
 
     // 7. Renderização SSR protegida por cabeçalhos militares de segurança
     try {
+      let ssrRequest = request;
+      // Suporte a rotas camufladas e criptografadas (/c/:cipher)
+      if (url.pathname.startsWith("/c/")) {
+        const cipher = url.pathname.slice(3);
+        const decrypted = decryptRouteParam(cipher);
+        const targetPath = decrypted && decrypted.startsWith("/") ? decrypted : decrypted ? `/${decrypted}` : "/comprar";
+        const rewrittenUrl = new URL(request.url);
+        rewrittenUrl.pathname = targetPath;
+        ssrRequest = new Request(rewrittenUrl.toString(), request);
+      }
+
       const handler = await getServerEntry();
-      const response = await handler.fetch(request, env, ctx);
+      const response = await handler.fetch(ssrRequest, env, ctx);
       const normalized = await normalizeCatastrophicSsrResponse(response);
 
       for (const [key, value] of Object.entries(MILITARY_SECURITY_HEADERS)) {

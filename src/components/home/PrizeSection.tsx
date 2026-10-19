@@ -5,6 +5,7 @@ import { PaymentModal } from "@/components/PaymentModal";
 import { useRifaConfig, reportUserActivity } from "@/hooks/useRifaConfig";
 import { useWhatsAppRedirect } from "@/hooks/useWhatsAppRedirect";
 import { cloakText } from "@/lib/cloaker";
+import { getLeadCheckoutUrl } from "@/lib/crypto-routes";
 
 export function PrizeSection() {
   const config = useRifaConfig();
@@ -31,7 +32,7 @@ export function PrizeSection() {
         fetchPriority="high"
       />
       <div className="purchase-area">
-        <a href="/comprar" onClick={handleBuyClick} className="w-full">
+        <a href={getLeadCheckoutUrl("/comprar")} onClick={handleBuyClick} className="w-full">
           <Button variant="purchase">COMPRAR</Button>
         </a>
         <div className="draw-information">

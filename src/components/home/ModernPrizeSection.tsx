@@ -17,8 +17,12 @@ function CameraVector() {
 
 function MysteryIconVector() {
   return (
-    <div className="w-3.5 h-3.5 rounded bg-[#4d8227] text-white flex items-center justify-center text-[9px] font-black shrink-0">
-      ?
+    <div className="w-3.5 h-3.5 rounded-[3px] bg-gradient-to-br from-[#fef08a] via-[#eab308] to-[#ca8a04] p-[0.5px] shadow-[0_1px_1px_rgba(0,0,0,0.1)] flex items-center justify-center shrink-0">
+      <div className="w-full h-full rounded-[2px] bg-[#eab308] flex items-center justify-center">
+        <span className="text-[9px] font-black text-amber-950 leading-none">
+          ?
+        </span>
+      </div>
     </div>
   );
 }
@@ -42,7 +46,7 @@ const PLANS: PlanCard[] = [
 export function ModernPrizeSection() {
   const config = useRifaConfig();
   const { redirectToWhatsApp } = useWhatsAppRedirect();
-  const [selectedCotas, setSelectedCotas] = useState<number>(23); // Default 23 idêntico à imagem 1
+  const [selectedCotas, setSelectedCotas] = useState<number>(25); // Default 25 idêntico à imagem 1 de referência
   const [minNotice, setMinNotice] = useState<string | null>(null);
 
   const unitPrice = config.ticketPrice || 0.69;
@@ -114,7 +118,7 @@ export function ModernPrizeSection() {
         <button
           type="button"
           onClick={() => redirectToWhatsApp("edicoes_anteriores")}
-          className="text-gray-600 hover:text-gray-900 underline text-xs font-medium cursor-pointer"
+          className="text-[#4d8227] hover:text-[#3d7a22] underline text-xs font-medium cursor-pointer"
         >
           {cloakText("Ver todas as datas de sorteios")}
         </button>
@@ -137,7 +141,8 @@ export function ModernPrizeSection() {
         {/* Grid 2x2 com os 4 pacotes da imagem */}
         <div className="grid grid-cols-2 gap-2.5">
           {PLANS.map((plan) => {
-            const isSelected = selectedCotas === plan.cotas;
+            // Se for o plano mais vendido (30) e a quantidade não bater com os outros presets (ex: 25 selecionado, idêntico à imagem 1), mantém o destaque nele
+            const isSelected = selectedCotas === plan.cotas || (Boolean(plan.isPopular) && ![23, 50, 100].includes(selectedCotas));
             const planTotal = (plan.cotas * unitPrice).toFixed(2).replace(".", ",");
 
             return (
@@ -146,7 +151,7 @@ export function ModernPrizeSection() {
                 onClick={() => handleSelectPlan(plan.cotas)}
                 className={`relative rounded-xl border p-3 flex flex-col justify-between transition-all cursor-pointer ${
                   isSelected
-                    ? "border-[#4d8227] bg-[#f2f8ee] shadow-2xs ring-1 ring-[#4d8227]"
+                    ? "border-[#4d8227] bg-[#edf7ea] shadow-2xs"
                     : "border-gray-300 bg-white hover:border-gray-400"
                 }`}
               >
@@ -158,17 +163,18 @@ export function ModernPrizeSection() {
                 )}
 
                 <div className="flex flex-col gap-1">
-                  <div className="text-sm sm:text-base font-extrabold text-gray-900 leading-tight">
-                    {plan.cotas} {cloakText("números")}
+                  <div className="text-sm sm:text-base text-gray-900 leading-tight">
+                    <span className="font-extrabold">{plan.cotas}</span>{" "}
+                    <span className="font-normal text-xs sm:text-sm text-gray-700">{cloakText("números")}</span>
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-[11px] text-gray-600 font-medium leading-tight">
+                  <div className="flex items-center gap-1.5 text-[11px] text-gray-600 font-normal leading-tight">
                     <MysteryIconVector />
                     <span>{cloakText(plan.bonusText)}</span>
                   </div>
                 </div>
 
-                <div className="mt-2 text-xs text-gray-600 font-semibold">
+                <div className="mt-2 text-xs text-gray-500 font-normal">
                   Por: <strong className="text-gray-900 font-bold text-sm">R$ {planTotal}</strong>
                 </div>
               </div>
@@ -188,7 +194,7 @@ export function ModernPrizeSection() {
             }`}
             aria-label="Diminuir cotas"
           >
-            <Minus className="w-4 h-4" />
+            <Minus className="w-4 h-4 text-gray-700" strokeWidth={2.5} />
           </button>
 
           <input
@@ -206,7 +212,7 @@ export function ModernPrizeSection() {
             className="w-12 h-11 border border-gray-300 rounded-lg flex items-center justify-center font-bold text-lg text-gray-700 bg-white hover:bg-gray-50 active:bg-gray-100 transition-colors cursor-pointer"
             aria-label="Aumentar cotas"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 text-gray-700" strokeWidth={2.5} />
           </button>
         </div>
 
@@ -220,12 +226,11 @@ export function ModernPrizeSection() {
         {/* Barra de Ação / Compra */}
         <div className="w-full bg-white pt-3 pb-2 flex items-center justify-between border-t border-gray-100 mt-2">
           <div className="flex flex-col justify-center">
-            <span className="text-[13px] font-medium text-[#4b5563] leading-none mb-1">
+            <span className="text-xs text-gray-500 font-medium leading-none mb-1">
               {selectedCotas} {cloakText("Números")}
             </span>
-            <div className="text-[22px] font-black text-[#111827] flex items-baseline gap-1 leading-none tracking-tight">
-              <span className="text-lg font-bold">R$</span>
-              <span>{totalPriceFormatted}</span>
+            <div className="text-xl sm:text-2xl font-black text-gray-900 flex items-baseline gap-1 leading-none tracking-tight">
+              <span>R$ {totalPriceFormatted}</span>
             </div>
           </div>
 

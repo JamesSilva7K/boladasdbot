@@ -9,6 +9,9 @@ export interface RifaConfig {
   drawTime: string;
   lotteryMethod: string;
   whatsappSupportNumber: string;
+  primaryGateway: "União 7 Pay" | "Elite PAYbr";
+  secondaryGateway: "União 7 Pay" | "Elite PAYbr";
+  autoFailoverEnabled: boolean;
 }
 
 export interface ActivityEvent {
@@ -68,6 +71,9 @@ const DEFAULT_CONFIG: RifaConfig = {
   drawTime: "20:00",
   lotteryMethod: "pela Loteria Federal",
   whatsappSupportNumber: "5511999999999",
+  primaryGateway: "União 7 Pay",
+  secondaryGateway: "Elite PAYbr",
+  autoFailoverEnabled: true,
 };
 
 const DEFAULT_METRICS: DashboardMetrics = {
