@@ -137,7 +137,7 @@ export function PaymentModal({
   ];
 
   const isValidCpf = cpfValidator.isValid(cpf.replace(/\D/g, ""));
-  const isFormValid = isValidCpf && captchaToken && !loading;
+  const isFormValid = isValidCpf && !loading;
 
   const currentTotal = Number((selectedCotas * (config.ticketPrice || 0.69)).toFixed(2));
   const currentTotalFormatted = currentTotal.toFixed(2).replace(".", ",");
@@ -443,17 +443,6 @@ export function PaymentModal({
                 )}
               </div>
 
-              <div className="w-full flex items-center justify-center min-h-[70px] overflow-hidden">
-                <Turnstile
-                  siteKey="1x00000000000000000000AA"
-                  onSuccess={(token) => setCaptchaToken(token)}
-                  onError={() => setCaptchaToken(null)}
-                  onExpire={() => setCaptchaToken(null)}
-                  options={{
-                    theme: "light",
-                  }}
-                />
-              </div>
 
               <Button
                 type="submit"
