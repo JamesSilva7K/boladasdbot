@@ -1,4 +1,6 @@
 import "./lib/error-capture";
+import fs from "fs";
+import path from "path";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";

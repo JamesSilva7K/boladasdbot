@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { getRifaConfig, updateRifaConfig, getRecentEvents, getMetrics, getLeadPurchases, type RifaConfig, type LeadPurchaseRecord } from "./rifa-store";
 import { PaymentManager } from "./payment-manager";
 import { getSecret } from "./vault-shield";
@@ -388,6 +390,31 @@ export function renderLeadsListScreen(): { text: string; markup: InlineKeyboardM
   return {
     text: `👥 <b>LEADS RECENTES QUE ACESSARAM O SISTEMA:</b>\n\n${lines.join("\n")}\n<i>💡 Para banir um IP manualmente, digite:</i> <code>/ban 123.456.78.90</code>`,
     markup: { inline_keyboard: banButtons },
+  };
+}
+
+export function renderBannedListScreen(): { text: string; markup: InlineKeyboardMarkup } {
+  const bannedIps = getBannedIpsList();
+  if (bannedIps.length === 0) {
+    return {
+      text: "🚫 <b>LISTA DE IPS BANIDOS PERMANENTEMENTE:</b>\n\nℹ️ <i>Nenhum IP banido no momento. Todos os acessos legítimos estão liberados.</i>",
+      markup: getBackToDashboardKeyboard(),
+    };
+  }
+
+  const lines = bannedIps.map((ip, idx) => `<b>${idx + 1}. IP:</b> <code>${ip}</code>`);
+  const unbanButtons: InlineKeyboardButton[][] = bannedIps.slice(0, 5).map((ip) => [
+    { text: `✅ Desbanir ${ip}`, callback_data: `action:unban:${ip}` },
+  ]);
+
+  unbanButtons.push([
+    { text: "🔄 Atualizar Lista", callback_data: "action:banned_list" },
+    { text: "🔙 Menu Principal", callback_data: "action:main_menu" },
+  ]);
+
+  return {
+    text: `🚫 <b>IPS BLOQUEADOS NO FIREWALL MILITAR (${bannedIps.length} no total):</b>\n\n${lines.join("\n")}\n\n<i>💡 Use /unban [IP] para desbanir manualmente.</i>`,
+    markup: { inline_keyboard: unbanButtons },
   };
 }
 
@@ -854,6 +881,9 @@ export function startTelegramPollingDaemon() {
               }).catch(() => {});
             }
           }
+
+          // Trata mensagens e mídias
+          const msg = update.message || update.edited_message;
 
           // Trata fotos enviadas pelo admin com ou sem legenda (/banner)
           if (msg && msg.photo && Array.isArray(msg.photo) && msg.photo.length > 0) {
