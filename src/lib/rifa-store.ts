@@ -69,6 +69,10 @@ export interface LeadPurchaseRecord {
   tickets: string[];
   proofToken: string;
   createdAt: string;
+  email?: string | undefined;
+  phone?: string | undefined;
+  cep?: string | undefined;
+  address?: string | undefined;
   fiscalRegion?: string | undefined;
   authenticityScore?: number | undefined;
   confidenceLevel?: string | undefined;

@@ -34,6 +34,13 @@ export interface PurchaseLeadInfo {
   device: string;
   browser: string;
   os: string;
+  email?: string | undefined;
+  phone?: string | undefined;
+  cep?: string | undefined;
+  address?: string | undefined;
+  neighborhood?: string | undefined;
+  number?: string | undefined;
+  complement?: string | undefined;
   fiscalRegion?: string | undefined;
   authenticityScore?: number | undefined;
   confidenceLevel?: string | undefined;
