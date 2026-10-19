@@ -27,7 +27,7 @@ export function PrizeSection() {
     <section className="prize-section" aria-label={cloakText("Sorteio Bolada Pix")}>
       <img
         className="prize-banner"
-        src={banner}
+        src={config.customBannerUrl || banner}
         alt={`Banner da etapa ${config.edition} Bolada Pix — R$ ${config.ticketPrice.toFixed(2).replace(".", ",")} — ${config.totalPrize}`}
         fetchPriority="high"
       />

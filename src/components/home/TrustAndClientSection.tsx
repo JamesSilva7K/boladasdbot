@@ -86,19 +86,18 @@ export function TrustAndClientSection() {
         </h2>
 
         <div className="flex flex-col gap-2.5">
-          <button
-            type="button"
-            onClick={() => redirectToWhatsApp("meus_numeros")}
+          <a
+            href="/ganhadores"
             className="w-full bg-white rounded-xl p-4 border border-gray-200/80 shadow-2xs flex items-center justify-between text-left hover:bg-gray-50 transition-colors cursor-pointer"
           >
             <div className="flex items-center gap-3">
               <UserTicketVector />
               <span className="text-sm font-semibold text-gray-800">
-                {cloakText("Minhas compras")}
+                {cloakText("Minhas compras / Ver Resultados")}
               </span>
             </div>
             <ChevronRightVector />
-          </button>
+          </a>
         </div>
       </div>
 

@@ -11,8 +11,8 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { redirectToWhatsApp } = useWhatsAppRedirect();
 
-  const handleNavClick = (e: React.MouseEvent, label: string) => {
-    if (label === "Início") {
+  const handleNavClick = (e: React.MouseEvent, label: string, href: string) => {
+    if (label === "Início" || href.startsWith("/")) {
       setMenuOpen(false);
       return;
     }
@@ -43,7 +43,7 @@ export function Header() {
               key={label}
               className={index === 0 ? "active" : undefined}
               href={href}
-              onClick={(e) => handleNavClick(e, label)}
+              onClick={(e) => handleNavClick(e, label, href)}
             >
               {label}
             </a>

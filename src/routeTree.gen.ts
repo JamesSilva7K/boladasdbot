@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ComprarRouteImport } from './routes/comprar'
+import { Route as GanhadoresRouteImport } from './routes/ganhadores'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +23,40 @@ const ComprarRoute = ComprarRouteImport.update({
   path: '/comprar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GanhadoresRoute = GanhadoresRouteImport.update({
+  id: '/ganhadores',
+  path: '/ganhadores',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/comprar': typeof ComprarRoute
+  '/ganhadores': typeof GanhadoresRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/comprar': typeof ComprarRoute
+  '/ganhadores': typeof GanhadoresRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/comprar': typeof ComprarRoute
+  '/ganhadores': typeof GanhadoresRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/comprar'
+  fullPaths: '/' | '/comprar' | '/ganhadores'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/comprar'
-  id: '__root__' | '/' | '/comprar'
+  to: '/' | '/comprar' | '/ganhadores'
+  id: '__root__' | '/' | '/comprar' | '/ganhadores'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ComprarRoute: typeof ComprarRoute
+  GanhadoresRoute: typeof GanhadoresRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ComprarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ganhadores': {
+      id: '/ganhadores'
+      path: '/ganhadores'
+      fullPath: '/ganhadores'
+      preLoaderRoute: typeof GanhadoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ComprarRoute: ComprarRoute,
+  GanhadoresRoute: GanhadoresRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

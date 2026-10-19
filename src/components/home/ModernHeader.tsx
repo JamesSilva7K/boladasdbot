@@ -16,15 +16,14 @@ export function ModernHeader() {
         />
       </a>
 
-      <button
-        type="button"
-        onClick={() => redirectToWhatsApp("meus_numeros")}
+      <a
+        href="/ganhadores"
         className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-gray-800 bg-white border border-gray-300 rounded-lg shadow-xs hover:bg-gray-50 transition-colors cursor-pointer"
-        title="Consultar meus bilhetes"
+        title="Consultar resultados e cotas premiadas"
       >
         <span>{cloakText("Minhas compras")}</span>
         <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
-      </button>
+      </a>
     </header>
   );
 }

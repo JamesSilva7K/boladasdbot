@@ -106,7 +106,7 @@ export function ModernPrizeSection() {
       {/* 1. Banner Principal */}
       <div className="w-full relative overflow-hidden">
         <img
-          src={banner}
+          src={config.customBannerUrl || banner}
           alt={`Banner etapa ${config.edition} Bolada Pix — ${config.totalPrize}`}
           className="w-full h-auto object-cover block"
           fetchPriority="high"
@@ -115,13 +115,12 @@ export function ModernPrizeSection() {
 
       {/* 2. Barra de Informações do Sorteio e Preço Unitário */}
       <div className="w-full px-4 py-2.5 flex items-center justify-between text-xs sm:text-sm bg-white border-b border-gray-100">
-        <button
-          type="button"
-          onClick={() => redirectToWhatsApp("edicoes_anteriores")}
+        <a
+          href="/ganhadores"
           className="text-[#4d8227] hover:text-[#3d7a22] underline text-xs font-medium cursor-pointer"
         >
           {cloakText("Ver todas as datas de sorteios")}
-        </button>
+        </a>
 
         <div className="flex items-center gap-1.5 text-xs text-gray-700 font-medium">
           <span>{cloakText("Por apenas")}</span>

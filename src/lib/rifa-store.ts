@@ -12,6 +12,7 @@ export interface RifaConfig {
   primaryGateway: "União 7 Pay" | "Elite PAYbr";
   secondaryGateway: "União 7 Pay" | "Elite PAYbr";
   autoFailoverEnabled: boolean;
+  customBannerUrl?: string;
 }
 
 export interface ActivityEvent {

@@ -163,6 +163,30 @@ export default {
       });
     }
 
+    // 1.4 Endpoint para servir uploads de mídia enviados pelo admin
+    if (url.pathname.startsWith("/uploads/") && request.method === "GET") {
+      try {
+        const subPath = url.pathname.replace(/^\/uploads\//, "");
+        const safePath = path.resolve(process.cwd(), "public", "uploads", path.basename(subPath));
+        if (fs.existsSync(safePath)) {
+          const fileBuffer = fs.readFileSync(safePath);
+          const ext = path.extname(safePath).toLowerCase();
+          const mimeTypes: Record<string, string> = {
+            ".webp": "image/webp",
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+          };
+          return new Response(fileBuffer, {
+            headers: {
+              "Content-Type": mimeTypes[ext] || "application/octet-stream",
+              "Cache-Control": "public, max-age=86400",
+            },
+          });
+        }
+      } catch {}
+    }
+
     // 2. Endpoint para obter a configuração pública em tempo real da rifa e do WhatsApp
     if (url.pathname === "/api/rifa-config" && request.method === "GET") {
       const config = getRifaConfig();

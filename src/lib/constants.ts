@@ -5,11 +5,11 @@ export const regulation = "https://fpp-assets.playservicos.com.br/bpp/BOLADAPIX/
 
 export const navigation = [
   ["Início", "/"],
-  ["Ganhadores", "#ganhadores"],
-  ["Meus Números", "#meus-numeros"],
+  ["Ganhadores", "/ganhadores"],
+  ["Meus Números", "/comprar"],
   ["Quem Somos", "#quem-somos"],
   ["Fale Conosco", "#contato"],
-  ["Edições Anteriores", "#edicoes-anteriores"],
+  ["Edições Anteriores", "/ganhadores"],
 ] as const;
 
 export const questions = [

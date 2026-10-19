@@ -387,13 +387,13 @@ export function PaymentModal({
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
               <div className="flex flex-col gap-2">
-                <Label className="text-sm text-foreground font-medium flex justify-between items-center">
-                  <span>{cloakText("Quantidade de Cotas:")}</span>
-                  <span className="text-xs text-[#518b2b] font-bold">
+                <div className="flex justify-between items-center text-sm font-semibold text-gray-800">
+                  <span>Quantidade de Cotas:</span>
+                  <span className="text-xs text-[#4d8227] font-bold">
                     R$ {(config.ticketPrice || 0.69).toFixed(2).replace(".", ",")} por cota
                   </span>
-                </Label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
                   {packages.map((pkg) => {
                     const price = (pkg.cotas * (config.ticketPrice || 0.69)).toFixed(2).replace(".", ",");
                     const isSelected = selectedCotas === pkg.cotas;
@@ -402,21 +402,21 @@ export function PaymentModal({
                         key={pkg.cotas}
                         type="button"
                         onClick={() => setSelectedCotas(pkg.cotas)}
-                        className={`relative p-2.5 rounded-lg border text-center transition-all cursor-pointer flex flex-col items-center justify-center ${
+                        className={`relative p-3 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center ${
                           isSelected
-                            ? "border-[#518b2b] bg-[#518b2b]/10 shadow-sm ring-1 ring-[#518b2b]"
-                            : "border-input bg-card hover:border-[#518b2b]/50"
+                            ? "border-[#4d8227] bg-[#edf7ea] ring-1 ring-[#4d8227]"
+                            : "border-gray-200 bg-white hover:border-[#4d8227]/40"
                         }`}
                       >
                         {pkg.popular && (
-                          <span className="absolute -top-2 bg-[#518b2b] text-[9px] font-extrabold text-white px-1.5 py-0.5 rounded-full uppercase tracking-wider">
-                            Mais Popular
+                          <span className="absolute -top-2.5 bg-[#4d8227] text-[9.5px] font-black text-white px-2 py-0.5 rounded-full uppercase tracking-wider shadow-2xs">
+                            MAIS POPULAR
                           </span>
                         )}
-                        <span className="font-bold text-sm sm:text-base text-foreground">
-                          {pkg.cotas} {cloakText("cotas")}
+                        <span className="font-extrabold text-sm sm:text-base text-gray-900 leading-tight">
+                          {pkg.cotas} cotas
                         </span>
-                        <span className="text-xs font-semibold text-[#518b2b]">
+                        <span className="text-xs font-bold text-[#4d8227] mt-0.5">
                           R$ {price}
                         </span>
                       </button>
@@ -425,8 +425,8 @@ export function PaymentModal({
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="cpf" className="text-sm text-foreground font-medium">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="cpf" className="text-sm font-bold text-gray-800">
                   CPF
                 </Label>
                 <Input
@@ -434,16 +434,16 @@ export function PaymentModal({
                   placeholder="000.000.000-00"
                   value={cpf}
                   onChange={handleCpfChange}
-                  className={`h-12 text-base px-4 border ${
-                    cpf.length === 14 && !isValidCpf ? "border-red-500 focus-visible:ring-red-500" : "border-input"
+                  className={`h-12 text-base px-4 border rounded-lg ${
+                    cpf.length === 14 && !isValidCpf ? "border-red-500 focus-visible:ring-red-500" : "border-gray-200"
                   }`}
                 />
                 {cpf.length === 14 && !isValidCpf && (
-                  <span className="text-sm text-red-500 font-medium">CPF inválido</span>
+                  <span className="text-xs text-red-500 font-medium">CPF inválido</span>
                 )}
               </div>
 
-              <div className="w-full flex items-center justify-center min-h-[78px] overflow-hidden">
+              <div className="w-full flex items-center justify-center min-h-[70px] overflow-hidden">
                 <Turnstile
                   siteKey="1x00000000000000000000AA"
                   onSuccess={(token) => setCaptchaToken(token)}
@@ -458,10 +458,10 @@ export function PaymentModal({
               <Button
                 type="submit"
                 disabled={!isFormValid}
-                className="w-full h-12 text-base font-bold text-white bg-[#518b2b] hover:bg-[#437422] disabled:bg-[#d8e4d1] disabled:text-white disabled:opacity-100 mt-2 rounded-md shadow"
+                className="w-full h-12 text-base font-extrabold text-white bg-[#4d8227] hover:bg-[#437222] disabled:bg-[#d4e4cc] disabled:text-white disabled:opacity-100 rounded-lg shadow-xs transition-colors"
               >
                 {loading
-                  ? "Gerando PIX com Blindagem..."
+                  ? "Gerando PIX..."
                   : `Garantir ${selectedCotas} Cotas por R$ ${currentTotalFormatted}`}
               </Button>
             </form>

@@ -56,8 +56,12 @@ export function getAdminDashboardKeyboard(): InlineKeyboardMarkup {
         { text: "💰 Alterar Valor Cota", callback_data: "action:prompt_valor" },
       ],
       [
+        { text: "🖼️ Banner & Mídia", callback_data: "action:prompt_banner" },
         { text: "🏆 Alterar Prêmio", callback_data: "action:prompt_premio" },
+      ],
+      [
         { text: "🎟️ Config da Rifa", callback_data: "action:status" },
+        { text: "🌐 Ver Ganhadores", callback_data: "action:view_ganhadores" },
       ],
     ],
   };
@@ -536,6 +540,31 @@ export async function handleCallbackQuery(data: string): Promise<{ reply: string
       markup: getBackToDashboardKeyboard(),
     };
   }
+  if (data === "action:prompt_banner") {
+    const cfg = getRifaConfig();
+    return {
+      reply: `🖼️ <b>ALTERAR BANNER PRINCIPAL DO SITE</b>\n\n` +
+        `📸 <b>Como alterar da sua máquina de forma inteligente:</b>\n` +
+        `1. Anexe a imagem aqui no chat diretamente do seu celular ou PC;\n` +
+        `2. Na legenda (caption) da foto, digite <code>/banner</code>;\n` +
+        `3. O bot fará o download e atualizará instantaneamente no site.\n\n` +
+        `🔗 <b>Ou envie via link direto:</b>\n` +
+        `<code>/setbanner https://seusite.com/imagem.webp</code>\n\n` +
+        `🖼️ <b>Banner Atual:</b> ${cfg.customBannerUrl || "Padrão Oficial (assets/banner.webp)"}`,
+      markup: getBackToDashboardKeyboard(),
+    };
+  }
+  if (data === "action:view_ganhadores") {
+    return {
+      reply: `🌐 <b>TELA OFICIAL DE RESULTADOS E GANHADORES</b>\n\n` +
+        `As telas de Ganhadores (Edição 64) e Cotas Premiadas estão ativas nas seguintes URLs:\n\n` +
+        `• <b>Rota de Ganhadores:</b> <code>/ganhadores</code>\n` +
+        `• <b>Pesquisa por Bilhete:</b> Integrada com filtro ao vivo\n` +
+        `• <b>Header e Footer Oficiais:</b> Em azul royal conforme especificado\n\n` +
+        `<i>Os leads que clicam em "Ganhadores", "Edições Anteriores" ou "Minhas compras" acessam essa tela com segurança.</i>`,
+      markup: getBackToDashboardKeyboard(),
+    };
+  }
 
   // Padrão: Painel Principal
   return {
@@ -686,6 +715,38 @@ export async function handleTelegramCommand(input: string, messageId?: number): 
     };
   }
 
+  if (command === "/setedicao" || command === "/edicao") {
+    const edicao = parts.slice(1).join(" ").trim();
+    if (!edicao) {
+      return {
+        reply: "❌ <b>Texto vazio!</b> Use: <code>/setedicao Edição 64</code>",
+        markup: getBackToDashboardKeyboard(),
+      };
+    }
+    const updated = updateRifaConfig({ edition: edicao });
+    return {
+      reply: `✅ <b>Edição da rifa atualizada!</b>\nNova edição ativa: <b>${edicao}</b>`,
+      markup: getBackToDashboardKeyboard(),
+      config: updated,
+    };
+  }
+
+  if (command === "/setbanner" || command === "/banner") {
+    const url = parts[1]?.trim();
+    if (!url || !url.startsWith("http")) {
+      return {
+        reply: "❌ <b>URL inválida!</b> Use: <code>/setbanner https://seusite.com/imagem.webp</code> ou anexe a imagem diretamente no Telegram com a legenda <code>/banner</code>.",
+        markup: getBackToDashboardKeyboard(),
+      };
+    }
+    const updated = updateRifaConfig({ customBannerUrl: url });
+    return {
+      reply: `✅ <b>Banner atualizado com sucesso!</b>\n🖼️ <b>Nova URL:</b> <code>${url}</code>`,
+      markup: getBackToDashboardKeyboard(),
+      config: updated,
+    };
+  }
+
   if (command === "/leads") {
     const s = renderLeadsListScreen();
     return {
@@ -794,8 +855,58 @@ export function startTelegramPollingDaemon() {
             }
           }
 
+          // Trata fotos enviadas pelo admin com ou sem legenda (/banner)
+          if (msg && msg.photo && Array.isArray(msg.photo) && msg.photo.length > 0) {
+            const chatId = msg.chat?.id;
+            const caption = (msg.caption || "").trim().toLowerCase();
+            const largestPhoto = msg.photo[msg.photo.length - 1];
+            const fileId = largestPhoto?.file_id;
+
+            if (fileId && chatId) {
+              try {
+                // Obtém caminho do arquivo no Telegram
+                const fileInfoRes = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`);
+                const fileInfo = await fileInfoRes.json();
+                if (fileInfo.ok && fileInfo.result?.file_path) {
+                  const downloadUrl = `https://api.telegram.org/file/bot${token}/${fileInfo.result.file_path}`;
+                  const imageRes = await fetch(downloadUrl);
+                  const arrayBuffer = await imageRes.arrayBuffer();
+                  const buffer = Buffer.from(arrayBuffer);
+
+                  // Salva estruturadamente na pasta pública
+                  const uploadsDir = path.resolve(process.cwd(), "public", "uploads");
+                  if (!fs.existsSync(uploadsDir)) {
+                    fs.mkdirSync(uploadsDir, { recursive: true });
+                  }
+                  const filename = `banner_admin_${Date.now()}.webp`;
+                  const filePath = path.join(uploadsDir, filename);
+                  fs.writeFileSync(filePath, buffer);
+
+                  const localUrl = `/uploads/${filename}`;
+                  updateRifaConfig({ customBannerUrl: localUrl });
+
+                  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      chat_id: chatId,
+                      text: `🎉 <b>IMAGEM RECEBIDA E APLICADA COM SUCESSO!</b>\n\n` +
+                        `🖼️ <b>Novo Banner do Site:</b> <code>${localUrl}</code>\n` +
+                        `📁 Salvo estruturadamente no servidor em <code>public/uploads/</code>\n\n` +
+                        `<i>A imagem anexada da sua máquina já está ao vivo para todos os leads!</i>`,
+                      parse_mode: "HTML",
+                      reply_to_message_id: msg.message_id,
+                      reply_markup: getBackToDashboardKeyboard(),
+                    }),
+                  }).catch(() => {});
+                }
+              } catch (uploadErr) {
+                console.error("[Telegram Bot] Erro ao processar upload de imagem:", uploadErr);
+              }
+            }
+          }
+
           // Trata mensagens e comandos digitados (/start, /menu, etc.)
-          const msg = update.message || update.edited_message;
           if (msg && msg.text) {
             const chatId = msg.chat?.id;
             const { reply, markup } = await handleTelegramCommand(msg.text, msg.message_id);
