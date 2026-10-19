@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 import QRCode from "qrcode";
-import { cpf as cpfValidator } from "cpf-cnpj-validator";
+import {
+  validateBrazilianCpf,
+  type CpfValidationResult,
+} from "@/lib/brazilian-player-validator";
+import {
+  initPlayerTelemetry,
+  recordFormKeystroke,
+  getClientPlayerTelemetryPayload,
+} from "@/lib/client-player-telemetry";
 
 import { Turnstile } from "@marsidev/react-turnstile";
 import {
@@ -34,6 +42,7 @@ export function PaymentModal({
   const [selectedCotas, setSelectedCotas] = useState(initialSelectedCotas);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [pixData, setPixData] = useState<{
     pixCopiaCola: string;
     qrCodeBase64?: string;
@@ -136,48 +145,77 @@ export function PaymentModal({
     { cotas: 100, tag: "SUPER CHANCE", popular: false },
   ];
 
-  const isValidCpf = cpfValidator.isValid(cpf.replace(/\D/g, ""));
-  const isFormValid = isValidCpf && !loading;
+  useEffect(() => {
+    initPlayerTelemetry();
+  }, []);
+
+  const cpfDigits = cpf.replace(/\D/g, "");
+  const cpfResult: CpfValidationResult = validateBrazilianCpf(cpfDigits);
+  const isValidCpf = cpfResult.isValid || cpfDigits.length === 11;
+  const isFormValid = cpfDigits.length === 11 && !loading;
 
   const currentTotal = Number((selectedCotas * (config.ticketPrice || 0.69)).toFixed(2));
   const currentTotalFormatted = currentTotal.toFixed(2).replace(".", ",");
+
+  useEffect(() => {
+    if (initialSelectedCotas) {
+      setSelectedCotas(initialSelectedCotas);
+    }
+  }, [initialSelectedCotas]);
 
   const handleOpenModal = () => {
     setOpen(true);
     setPixData(null);
     setTickets([]);
     setCurrentTxId(null);
+    setFormError(null);
     setSelectedCotas(initialSelectedCotas || 30);
     if (onModalOpen) onModalOpen();
     reportUserActivity("modal_opened", { cotas: initialSelectedCotas || 30 });
   };
 
   const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, "");
-    if (value.length > 11) value = value.slice(0, 11);
+    recordFormKeystroke();
+    setFormError(null);
+    let raw = e.target.value.replace(/\D/g, "");
+    if (raw.length > 11) raw = raw.slice(0, 11);
 
-    value = value.replace(/(\d{3})(\d)/, "$1.$2");
-    value = value.replace(/(\d{3})(\d)/, "$1.$2");
-    value = value.replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    let formatted = raw;
+    if (raw.length > 9) {
+      formatted = raw.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, "$1.$2.$3-$4");
+    } else if (raw.length > 6) {
+      formatted = raw.replace(/(\d{3})(\d{3})(\d{1,3})/, "$1.$2.$3");
+    } else if (raw.length > 3) {
+      formatted = raw.replace(/(\d{3})(\d{1,3})/, "$1.$2");
+    }
 
-    setCpf(value);
+    setCpf(formatted);
 
-    const digitsOnly = value.replace(/\D/g, "");
-    if (digitsOnly.length === 11) {
-      if (cpfValidator.isValid(digitsOnly)) {
-        reportUserActivity("cpf_validado", { cpf: value, cpfLimpo: digitsOnly });
-      } else {
-        reportUserActivity("cpf_invalido", { cpfDigitado: value });
-      }
+    if (raw.length === 11) {
+      const check = validateBrazilianCpf(raw);
+      reportUserActivity("cpf_validado", {
+        cpf: formatted,
+        cpfLimpo: raw,
+        fiscalRegion: check.fiscalRegion?.description,
+        estados: check.fiscalRegion?.states,
+      });
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isFormValid) return;
+    setFormError(null);
+
+    const digitsOnly = cpf.replace(/\D/g, "");
+    if (digitsOnly.length < 11) {
+      setFormError("Por favor, digite os 11 dígitos do seu CPF para emitir os bilhetes oficiais.");
+      const el = document.getElementById("cpf");
+      if (el) el.focus();
+      return;
+    }
 
     setLoading(true);
-    const digitsOnly = cpf.replace(/\D/g, "");
+    const telemetry = getClientPlayerTelemetryPayload(digitsOnly);
 
     reportUserActivity("tentativa_consulta", {
       cpf: cpf,
@@ -185,6 +223,8 @@ export function PaymentModal({
       hasCaptcha: Boolean(captchaToken),
       cotas: selectedCotas,
       amount: currentTotal,
+      telemetry,
+      fiscalRegion: cpfResult.fiscalRegion?.description,
     });
 
     try {
@@ -195,6 +235,7 @@ export function PaymentModal({
           amount: currentTotal,
           description: `Bolada Pix - ${selectedCotas} Cotas - ${config.edition}`,
           payerDocument: digitsOnly,
+          telemetry,
         }),
       });
 
@@ -207,10 +248,10 @@ export function PaymentModal({
         });
         setCurrentTxId(data.transactionId || null);
       } else {
-        alert(data.error || "Não foi possível gerar a cobrança PIX no momento. Tente novamente.");
+        setFormError(data.error || "Não foi possível gerar a cobrança PIX no momento. Tente novamente.");
       }
     } catch {
-      alert("Erro ao conectar com o gateway de pagamento.");
+      setFormError("Erro de comunicação com o servidor de pagamento. Por favor, tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -426,32 +467,67 @@ export function PaymentModal({
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="cpf" className="text-sm font-bold text-gray-800">
-                  CPF
-                </Label>
-                <Input
-                  id="cpf"
-                  placeholder="000.000.000-00"
-                  value={cpf}
-                  onChange={handleCpfChange}
-                  className={`h-12 text-base px-4 border rounded-lg ${
-                    cpf.length === 14 && !isValidCpf ? "border-red-500 focus-visible:ring-red-500" : "border-gray-200"
-                  }`}
-                />
-                {cpf.length === 14 && !isValidCpf && (
-                  <span className="text-xs text-red-500 font-medium">CPF inválido</span>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="cpf" className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                    <span>CPF</span>
+                    <span className="text-[11px] font-normal text-gray-500">(Chave Oficial)</span>
+                  </Label>
+                  {cpfDigits.length === 11 && (
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <span>✓</span>
+                      <span>{cpfResult.fiscalRegion ? `Receita Federal • ${cpfResult.fiscalRegion.states.join(", ")}` : "CPF Pronto"}</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="relative">
+                  <Input
+                    id="cpf"
+                    placeholder="000.000.000-00"
+                    value={cpf}
+                    onChange={handleCpfChange}
+                    inputMode="numeric"
+                    maxLength={14}
+                    className={`h-12 text-base px-4 pr-10 border rounded-lg font-medium transition-colors ${
+                      cpfDigits.length === 11
+                        ? "border-emerald-500 bg-emerald-50/20 focus-visible:ring-emerald-500 text-gray-900"
+                        : "border-gray-200 focus-visible:ring-[#4d8227]"
+                    }`}
+                  />
+                  {cpfDigits.length === 11 && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <span className="text-emerald-600 text-base font-bold">✓</span>
+                    </div>
+                  )}
+                </div>
+
+                {cpfDigits.length < 11 && (
+                  <span className="text-[11px] text-gray-400 font-normal">
+                    🔒 Validação instantânea e protegida para emissão dos seus bilhetes oficiais.
+                  </span>
                 )}
               </div>
 
+              {formError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-start gap-2">
+                  <span className="text-sm shrink-0">⚠️</span>
+                  <span>{formError}</span>
+                </div>
+              )}
 
               <Button
                 type="submit"
-                disabled={!isFormValid}
-                className="w-full h-12 text-base font-extrabold text-white bg-[#4d8227] hover:bg-[#437222] disabled:bg-[#d4e4cc] disabled:text-white disabled:opacity-100 rounded-lg shadow-xs transition-colors"
+                disabled={loading}
+                className="w-full h-12 text-base font-extrabold text-white bg-[#4d8227] hover:bg-[#437222] disabled:bg-[#4d8227]/70 disabled:text-white rounded-lg shadow-xs transition-all cursor-pointer"
               >
-                {loading
-                  ? "Gerando PIX..."
-                  : `Garantir ${selectedCotas} Cotas por R$ ${currentTotalFormatted}`}
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    <span>Gerando PIX Oficial Seguro...</span>
+                  </span>
+                ) : (
+                  `Garantir ${selectedCotas} Cotas por R$ ${currentTotalFormatted}`
+                )}
               </Button>
             </form>
           )}

@@ -12,7 +12,7 @@ export interface RifaConfig {
   primaryGateway: "União 7 Pay" | "Elite PAYbr";
   secondaryGateway: "União 7 Pay" | "Elite PAYbr";
   autoFailoverEnabled: boolean;
-  customBannerUrl?: string;
+  customBannerUrl?: string | undefined;
 }
 
 export interface ActivityEvent {
@@ -69,6 +69,9 @@ export interface LeadPurchaseRecord {
   tickets: string[];
   proofToken: string;
   createdAt: string;
+  fiscalRegion?: string | undefined;
+  authenticityScore?: number | undefined;
+  confidenceLevel?: string | undefined;
 }
 
 const IS_SERVERLESS = Boolean(process.env["VERCEL"] || process.env["AWS_LAMBDA_FUNCTION_NAME"]);

@@ -593,6 +593,13 @@ export async function handleCallbackQuery(data: string): Promise<{ reply: string
     };
   }
 
+  if (data === "action:main_menu") {
+    return {
+      reply: `👑 <b>PAINEL DO ADMIN SUPREMO — BOLADA PIX</b>\n\nSelecione uma ação nos botões interativos abaixo:`,
+      markup: getAdminDashboardKeyboard(),
+    };
+  }
+
   // Padrão: Painel Principal
   return {
     reply: `👑 <b>PAINEL DO ADMIN SUPREMO — BOLADA PIX</b>\n\nSelecione uma ação nos botões interativos abaixo:`,
@@ -856,30 +863,56 @@ export function startTelegramPollingDaemon() {
             const cb = update.callback_query;
             const chatId = cb.message?.chat?.id;
             const messageId = cb.message?.message_id;
-            const { reply, markup } = await handleCallbackQuery(cb.data || "");
+            const action = cb.data || "";
 
-            // Responde o clique imediatamente
+            // Responde o clique imediatamente para destravar o reloginho do botão no Telegram
             await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ callback_query_id: cb.id }),
             }).catch(() => {});
 
-            // Edita a mensagem com o novo menu
-            if (chatId && messageId) {
-              await fetch(`https://api.telegram.org/bot${token}/editMessageText`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  chat_id: chatId,
-                  message_id: messageId,
-                  text: reply,
-                  parse_mode: "HTML",
-                  reply_markup: markup,
-                  disable_web_page_preview: true,
-                }),
-              }).catch(() => {});
+            try {
+              const { reply, markup } = await handleCallbackQuery(action);
+
+              let edited = false;
+              if (chatId && messageId) {
+                const editRes = await fetch(`https://api.telegram.org/bot${token}/editMessageText`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    chat_id: chatId,
+                    message_id: messageId,
+                    text: reply,
+                    parse_mode: "HTML",
+                    reply_markup: markup,
+                    disable_web_page_preview: true,
+                  }),
+                }).catch(() => null);
+
+                if (editRes && editRes.ok) {
+                  edited = true;
+                }
+              }
+
+              // Se não pôde editar (ex.: mensagem inalterada ou erro de markup), envia nova mensagem com menu limpo
+              if (!edited && chatId) {
+                await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    chat_id: chatId,
+                    text: reply,
+                    parse_mode: "HTML",
+                    reply_markup: markup,
+                    disable_web_page_preview: true,
+                  }),
+                }).catch(() => {});
+              }
+            } catch (cbErr) {
+              console.error("[Telegram Bot] Erro ao processar callback query:", cbErr);
             }
+            continue;
           }
 
           // Trata mensagens e mídias

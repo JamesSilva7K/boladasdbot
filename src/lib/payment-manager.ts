@@ -34,6 +34,9 @@ export interface PurchaseLeadInfo {
   device: string;
   browser: string;
   os: string;
+  fiscalRegion?: string | undefined;
+  authenticityScore?: number | undefined;
+  confidenceLevel?: string | undefined;
 }
 
 // Armazena transações recentes em memória para reconciliação do Lead e auditoria

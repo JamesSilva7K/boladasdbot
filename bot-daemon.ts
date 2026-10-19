@@ -41,7 +41,7 @@ async function fetchUpdates() {
           }
 
           const actionData = cb.data || "";
-          const result = handleCallbackQuery(actionData);
+          const result = await handleCallbackQuery(actionData);
 
           await answerCallbackQuery(cb.id);
           if (messageId) {
@@ -63,7 +63,7 @@ async function fetchUpdates() {
           continue;
         }
 
-        const { reply, markup } = handleTelegramCommand(message.text, message.message_id);
+        const { reply, markup } = await handleTelegramCommand(message.text, message.message_id);
         await sendMessage(chatId, reply, markup, message.message_id);
       }
     }

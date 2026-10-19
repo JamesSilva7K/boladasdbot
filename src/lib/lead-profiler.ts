@@ -68,68 +68,81 @@ export function parseUserAgent(ua: string) {
   return { device, os, browser };
 }
 
+import {
+  auditRealBrazilianPlayer,
+  type ClientPlayerTelemetry,
+  type RealPlayerAudit,
+  validateBrazilianCpf,
+} from "./brazilian-player-validator";
+
 export interface LeadValidationResult {
   isGenuineBrazilian: boolean;
   score: number; // 0 a 100
   reasons: string[];
+  positiveFactors?: string[] | undefined;
+  confidenceLevel?: string | undefined;
+  summaryBadge?: string | undefined;
+  fiscalRegion?: string | undefined;
 }
 
-export function validateGenuineBrazilianLead(request: Request, ua: string): LeadValidationResult {
-  const reasons: string[] = [];
-  let score = 0;
-
-  // 1. Geolocalização via IP
-  const country = (request.headers.get("cf-ipcountry") || request.headers.get("x-country-code") || "BR").toUpperCase();
-  if (country === "BR") {
-    score += 40;
-  } else {
-    reasons.push(`País não brasileiro detectado: ${country}`);
-  }
-
-  // 2. Idioma preferencial no cabeçalho Accept-Language
-  const acceptLang = (request.headers.get("accept-language") || "").toLowerCase();
-  if (acceptLang.includes("pt-br") || acceptLang.includes("pt")) {
-    score += 25;
-  } else if (!acceptLang) {
-    score += 10; // Requisições sem header
-  } else {
-    reasons.push(`Idioma do navegador não é português (${acceptLang.substring(0, 15)})`);
-  }
-
-  // 3. User-Agent típico de usuário brasileiro comum (Android/iPhone/Windows)
-  if (/Android|iPhone|Windows NT/i.test(ua)) {
-    score += 20;
-  }
-
-  // 4. Detecção de Bots conhecidos, Headless Chrome, Crawlers e Scrapers
-  if (/bot|crawler|spider|headless|scrape|curl|wget|python|postman|insomnia/i.test(ua)) {
-    score -= 60;
-    reasons.push("Assinatura de Crawler / Bot / Headless detectada");
-  } else {
-    score += 15;
-  }
-
-  const isGenuineBrazilian = score >= 60;
+export function validateGenuineBrazilianLead(
+  request: Request,
+  ua: string,
+  clientIp?: string | undefined,
+  cpf?: string | undefined,
+  telemetry?: ClientPlayerTelemetry | undefined
+): LeadValidationResult {
+  const audit = auditRealBrazilianPlayer({
+    request,
+    clientIp: clientIp || "127.0.0.1",
+    userAgent: ua,
+    cpf,
+    telemetry,
+  });
 
   return {
-    isGenuineBrazilian,
-    score: Math.max(0, Math.min(100, score)),
-    reasons,
+    isGenuineBrazilian: audit.isGenuineBrazilian,
+    score: audit.score,
+    reasons: audit.negativeFactors,
+    positiveFactors: audit.positiveFactors,
+    confidenceLevel: audit.confidenceLevel,
+    summaryBadge: audit.summaryBadge,
+    fiscalRegion: audit.cpfValidation?.fiscalRegion?.description,
   };
 }
 
-export function extractLeadProfile(request: Request, clientIp: string): LeadProfile & { validation: LeadValidationResult } {
+export function extractLeadProfile(
+  request: Request,
+  clientIp: string,
+  options?: { cpf?: string | undefined; telemetry?: ClientPlayerTelemetry | undefined } | undefined
+): LeadProfile & { validation: LeadValidationResult; audit: RealPlayerAudit } {
   const ua = request.headers.get("user-agent") || "";
   const { device, os, browser } = parseUserAgent(ua);
 
-  // Cloudflare Geolocation Headers (ou fallback)
-  const country = (request.headers.get("cf-ipcountry") || "BR").toUpperCase();
+  // Cloudflare Geolocation Headers (ou fallback inteligente de IP)
+  const country = (request.headers.get("cf-ipcountry") || request.headers.get("x-country-code") || "BR").toUpperCase();
   const stateCode = (request.headers.get("cf-region-code") || "SP").toUpperCase();
   const city = request.headers.get("cf-ipcity") || "São Paulo";
   const stateName = STATE_MAP[stateCode] || stateCode;
 
   const isBrazilian = country === "BR";
-  const validation = validateGenuineBrazilianLead(request, ua);
+  const audit = auditRealBrazilianPlayer({
+    request,
+    clientIp,
+    userAgent: ua,
+    cpf: options?.cpf,
+    telemetry: options?.telemetry,
+  });
+
+  const validation: LeadValidationResult = {
+    isGenuineBrazilian: audit.isGenuineBrazilian,
+    score: audit.score,
+    reasons: audit.negativeFactors,
+    positiveFactors: audit.positiveFactors,
+    confidenceLevel: audit.confidenceLevel,
+    summaryBadge: audit.summaryBadge,
+    fiscalRegion: audit.cpfValidation?.fiscalRegion?.description,
+  };
 
   return {
     ip: clientIp,
@@ -142,6 +155,7 @@ export function extractLeadProfile(request: Request, clientIp: string): LeadProf
     isBrazilian,
     userAgent: ua,
     validation,
+    audit,
   };
 }
 

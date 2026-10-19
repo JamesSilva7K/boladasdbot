@@ -9,6 +9,9 @@ const DEFAULT_CONFIG: RifaConfig = {
   drawTime: "20:00",
   lotteryMethod: "pela Loteria Federal",
   whatsappSupportNumber: "5511999999999",
+  primaryGateway: "União 7 Pay",
+  secondaryGateway: "Elite PAYbr",
+  autoFailoverEnabled: true,
 };
 
 export function useRifaConfig() {

