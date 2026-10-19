@@ -320,34 +320,72 @@ export function isLikelyBrazilianIp(ip: string): boolean {
   return false;
 }
 
-// ── DATACENTERS ESTRANGEIROS & SCRAPERS (Hosters conhecidos de bots) ───────
+// ── DATACENTERS ESTRANGEIROS & SCRAPERS (Hosters conhecidos de bots & crawlers de plataformas) ──
 export function isForeignDatacenterOrHoster(ip: string, userAgent: string): boolean {
   const ua = (userAgent || "").toLowerCase();
 
-  // Scrapers / Crawlers / Ferramentas de auditoria e headless
+  // 1. Spiders / Bots / Crawlers de Plataformas de Anúncios e Redes Sociais
   if (
-    /headlesschrome|puppeteer|playwright|selenium|phantomjs|nightmare|mechanize|aiohttp|scrapy|python-requests|curl|wget|postman|insomnia|httpclient|zgrab|masscan|nmap|nikto/i.test(
+    /facebookexternalhit|meta-externalads|meta-externalagent|facebot|facebookcatalog|facebookplatform|instagram|threads|bytedance|tiktokbot|tiktokspider|bytespider|twitterbot|pinterest|linkedinbot|quora[\s-]link[\s-]preview|slackbot|discordbot|telegrambot|whatsapp/i.test(
       ua
     )
   ) {
     return true;
   }
 
-  // Hetzner (ex: 88.198., 95.216., 65.108., 116.202., 136.243., 148.251.)
-  // DigitalOcean (ex: 138.68., 159.65., 167.99., 178.62., 206.189.)
-  // OVH (ex: 51.254., 54.36., 147.135., 149.202., 151.80.)
-  // Choopa/Vultr (ex: 45.32., 45.63., 45.76., 108.61., 149.28.)
-  // AWS (ex: 3.80., 18.204., 52.90., 54.210.)
-  const prefix2 = ip.split(".").slice(0, 2).join(".");
-  const knownBotDcPrefixes = [
-    "88.198", "95.216", "65.108", "116.202", "136.243", "148.251", // Hetzner
-    "138.68", "159.65", "167.99", "178.62", "206.189",             // DigitalOcean
-    "51.254", "54.36", "147.135", "149.202", "151.80",             // OVH
-    "45.32", "45.63", "45.76", "108.61", "149.28",                 // Vultr
-    "3.80", "18.204", "52.90", "54.210",                            // AWS US
-  ];
+  // 2. Crawlers de Motores de Busca e Ferramentas de Auditoria / SEO
+  if (
+    /googlebot|google-inspectiontool|adsbot-google|mediapartners-google|feedfetcher-google|bingbot|msnbot|slurp|duckduckbot|baiduspider|yandexbot|sogou|exabot|ahrefsbot|semrushbot|dotbot|rogerbot|mj12bot|screaming[\s-]frog|zoominfobot|censys|shodan/i.test(
+      ua
+    )
+  ) {
+    return true;
+  }
 
-  if (knownBotDcPrefixes.includes(prefix2)) {
+  // 3. Ferramentas Headless, Scrapers, HTTP Clients e Automação
+  if (
+    /headlesschrome|puppeteer|playwright|selenium|phantomjs|nightmare|mechanize|aiohttp|scrapy|python-requests|curl|wget|postman|insomnia|httpclient|zgrab|masscan|nmap|nikto|apachebench|wrk|go-http-client|axios|undici|node-fetch/i.test(
+      ua
+    )
+  ) {
+    return true;
+  }
+
+  // 4. Datacenters e Nuvem Conhecidos (IP Prefix / ASNs)
+  // Hetzner, DigitalOcean, OVH, Vultr/Choopa, AWS, GCP, Azure, Linode, Oracle, Contabo, Hostinger
+  const prefix2 = ip.split(".").slice(0, 2).join(".");
+  const knownBotDcPrefixes = new Set([
+    // Hetzner
+    "88.198", "95.216", "65.108", "116.202", "136.243", "148.251", "159.69", "168.119", "195.201", "213.133", "213.239",
+    // DigitalOcean
+    "138.68", "159.65", "167.99", "178.62", "206.189", "134.209", "142.93", "143.198", "143.244", "146.190", "157.245", "164.92", "165.22", "165.227", "167.71", "174.138", "188.166", "198.199", "198.211", "207.154",
+    // OVH
+    "51.254", "54.36", "147.135", "149.202", "151.80", "51.255", "51.83", "51.89", "51.91", "141.94", "141.95", "142.4", "144.217", "145.239", "149.56", "158.69", "167.114", "176.31", "178.32", "178.33", "198.27", "198.50", "217.182",
+    // Vultr / Choopa
+    "45.32", "45.63", "45.76", "108.61", "149.28", "66.42", "70.34", "95.179", "107.191", "144.202", "155.138", "199.247", "207.148", "217.163",
+    // AWS (Amazon Web Services)
+    "3.80", "3.81", "3.82", "3.83", "3.84", "3.85", "3.86", "3.87", "3.88", "3.89", "3.90", "3.91", "3.92", "3.93", "3.94", "3.95",
+    "18.204", "18.205", "18.206", "18.207", "18.208", "18.209", "18.210", "18.211", "18.212", "18.213", "18.214", "18.215",
+    "52.90", "52.91", "54.210", "54.211", "54.221", "54.224", "54.226", "54.227", "54.234", "54.235", "54.236", "54.237",
+    "35.153", "35.160", "35.168", "35.170", "35.171", "35.172", "35.173", "35.174", "35.175",
+    // Google Cloud Platform (GCP)
+    "34.64", "34.65", "34.66", "34.67", "34.68", "34.69", "34.70", "34.71", "34.72", "34.73", "34.74", "34.75", "34.76", "34.77", "34.78", "34.79", "34.80", "34.81", "34.82", "34.83", "34.84", "34.85", "34.86", "34.87",
+    "35.184", "35.185", "35.186", "35.187", "35.188", "35.189", "35.190", "35.191", "35.192", "35.193", "35.194", "35.195", "35.196", "35.197", "35.198", "35.199",
+    // Microsoft Azure
+    "13.64", "13.65", "13.66", "13.67", "13.68", "13.69", "13.70", "13.71", "13.72", "13.73", "13.74", "13.75", "13.76", "13.77", "13.78", "13.79", "13.80", "13.81", "13.82", "13.83", "13.84", "13.85", "13.86", "13.87", "13.88", "13.89", "13.90", "13.91", "13.92", "13.93", "13.94", "13.95",
+    "20.36", "20.37", "20.38", "20.39", "20.40", "20.41", "20.42", "20.43", "20.44", "20.45", "20.46", "20.47", "20.48", "20.49", "20.50", "20.51", "20.52", "20.53", "20.54", "20.55",
+    "40.74", "40.75", "40.76", "40.77", "40.78", "40.79", "40.80", "40.81", "40.82", "40.83", "40.84", "40.85", "40.86", "40.87", "40.88", "40.89", "40.90", "40.91",
+    // Linode / Akamai Cloud
+    "45.33", "45.56", "45.79", "50.116", "96.126", "172.104", "172.105", "173.230", "173.255", "192.155", "198.58",
+    // Oracle Cloud (OCI)
+    "129.146", "129.150", "129.151", "129.152", "129.153", "129.154", "129.158", "129.159", "129.213", "130.35", "130.61", "132.145", "132.226", "140.238", "144.24", "150.136", "152.67", "152.70", "168.138",
+    // Contabo & Hostinger
+    "144.91", "161.97", "173.212", "173.249", "185.228", "185.239", "194.163", "213.136", "31.220", "145.14", "185.185", "185.201", "185.224", "185.229", "185.232", "185.244", "185.247",
+    // Alibaba Cloud / Tencent / Baidu
+    "47.52", "47.56", "47.74", "47.75", "47.88", "47.89", "47.90", "47.91", "47.92", "47.93", "47.94", "47.95", "47.242", "47.243", "47.254",
+  ]);
+
+  if (knownBotDcPrefixes.has(prefix2)) {
     return true;
   }
 

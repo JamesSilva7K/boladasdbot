@@ -85,7 +85,7 @@ const HONEYPOT_PATHS = new Set([
   "/.git/config", "/.git/HEAD",
 ]);
 
-// Agentes de clonagem/scraping
+// Agentes de clonagem/scraping, plataformas e bots automáticos
 const MALICIOUS_USER_AGENTS: RegExp[] = [
   /httrack/i, /teleport/i, /webcopier/i, /offline[\s-]explorer/i,
   /site[\s-]sniffer/i, /copier/i, /scraper/i, /ripper/i,
@@ -95,6 +95,10 @@ const MALICIOUS_USER_AGENTS: RegExp[] = [
   /masscan/i, /nmap/i, /nikto/i, /sqlmap/i, /dirbuster/i,
   /gobuster/i, /wfuzz/i, /hydra/i, /zgrab/i,
   /scrapy/i, /aiohttp/i, /httpx/i,
+  /headlesschrome/i, /phantomjs/i, /selenium/i, /playwright/i, /puppeteer/i,
+  /bytespider/i, /tiktokspider/i, /tiktokbot/i,
+  /facebookexternalhit/i, /meta-externalads/i, /meta-externalagent/i, /facebot/i,
+  /semrushbot/i, /ahrefsbot/i, /dotbot/i, /rogerbot/i, /mj12bot/i,
 ];
 
 // ── Extração de IP ─────────────────────────────────────────────────────────
