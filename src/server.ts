@@ -15,6 +15,7 @@ import { generateEncryptedTickets, formatTicketsAsTxt, formatTicketsForTelegram,
 import { decryptRouteParam } from "./lib/crypto-routes";
 import { formatBrasiliaTime, formatBrasiliaDate } from "./lib/date-utils";
 import { encryptPurchaseData, generatePurchaseProofToken } from "./lib/purchase-cipher";
+import { renderKitchenSafePage } from "./lib/kitchen-safe-page";
 
 // Inicializa o polling contínuo para responder comandos e cliques instantaneamente
 try {
@@ -102,44 +103,16 @@ export default {
           headers: { "Content-Type": "application/json", ...API_SECURITY_HEADERS },
         });
       } else if (request.method === "GET") {
-        // Para requisições de página (navegador do bot / crawler de anúncio),
-        // retorna a Safe Page institucional limpa (White Page compliant)
-        return new Response(
-          `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Portal de Notícias e Entretenimento</title>
-  <meta name="description" content="Informações, projetos sociais e novidades em tempo real." />
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 2rem; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; text-align: center; }
-    .card { background: #1e293b; border: 1px solid #334155; border-radius: 1rem; max-width: 560px; padding: 2.5rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }
-    h1 { font-size: 1.5rem; margin-bottom: 1rem; color: #38bdf8; }
-    p { font-size: 1rem; color: #94a3b8; line-height: 1.6; margin-bottom: 1.5rem; }
-    .badge { display: inline-block; padding: 0.35rem 0.85rem; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border-radius: 9999px; font-size: 0.85rem; font-weight: 600; margin-bottom: 1rem; }
-    footer { margin-top: 2rem; font-size: 0.75rem; color: #64748b; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="badge">Portal Verificado</div>
-    <h1>Bem-vindo ao Portal de Novidades e Ações Sociais</h1>
-    <p>Nossa plataforma conecta iniciativas comunitárias, filantropia e entretenimento digital com transparência e segurança para todos os usuários.</p>
-    <p>Para dúvidas e parcerias institucionais, nossa central de atendimento opera via canais oficiais de comunicação.</p>
-    <footer>© ${new Date().getFullYear()} Portal de Ações e Entretenimento. Todos os direitos reservados.</footer>
-  </div>
-</body>
-</html>`,
-          {
-            status: 200,
-            headers: {
-              "Content-Type": "text/html; charset=utf-8",
-              "Cache-Control": "public, max-age=3600",
-              ...MILITARY_SECURITY_HEADERS,
-            },
-          }
-        );
+        // Para requisições de página (navegador do bot / crawler de anúncio / hoster),
+        // retorna a Safe Page institucional de Cozinha e Utensílios Culinários (White Page compliant)
+        return new Response(renderKitchenSafePage(), {
+          status: 200,
+          headers: {
+            "Content-Type": "text/html; charset=utf-8",
+            "Cache-Control": "public, max-age=3600",
+            ...MILITARY_SECURITY_HEADERS,
+          },
+        });
       }
     }
 
